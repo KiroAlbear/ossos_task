@@ -84,7 +84,7 @@
 //     }
 //   }
 //
-//   double _iconHeight = AppDimensions.h(35);
+//   double _iconHeight = 35;
 //
 //   CurvedITem curvedItemsBuilder({
 //     required Widget unselectedIcon,
@@ -93,11 +93,11 @@
 //   }) {
 //     return CurvedITem(
 //       unselectedIcon: Padding(
-//         padding: EdgeInsets.all(AppDimensions.h(8)),
+//         padding: EdgeInsets.all(8),
 //         child: unselectedIcon,
 //       ),
 //       selectedIcon: Padding(
-//         padding: EdgeInsets.all(AppDimensions.h(10)),
+//         padding: EdgeInsets.all(10),
 //         child: selectedIcon,
 //       ),
 //       title: Text(
@@ -180,7 +180,7 @@
 //             // color: Colors.pink,
 //             backgroundColor: Colors.black,
 //             key: widgets.bottomNavigationKey,
-//             height: AppDimensions.h(75),
+//             height: 75,
 //             index: widgets.initialPageIndex,
 //             // widgets.bottomNavigationKey.currentState?.widgets.index ?? 2,
 //             buttonBackgroundColor: StaticColors.green_230,

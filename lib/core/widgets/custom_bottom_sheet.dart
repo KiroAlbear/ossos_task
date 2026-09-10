@@ -15,8 +15,8 @@ class CustomBottomSheet extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(AppDimensions.bottomSheetBorderRadius),
-          topRight: Radius.circular(AppDimensions.bottomSheetBorderRadius),
+          topLeft: Radius.circular(30),
+          topRight: Radius.circular(30),
         ),
       ),
       child: Column(
@@ -28,15 +28,13 @@ class CustomBottomSheet extends StatelessWidget {
             width: 50,
             decoration: BoxDecoration(
               color: StaticColors.gray_b1b,
-              borderRadius: BorderRadius.all(
-                Radius.circular(AppDimensions.cardBorderRadius),
-              ),
+              borderRadius: BorderRadius.all(Radius.circular(5)),
             ),
           ),
           SizedBox(height: 20),
           Container(
             child: child,
-            // height: AppDimensions.fh() * .3,
+            // height: MediaQuery.sizeOf(context).height * .3,
             // child: Column(
             //   children: [
             //     Expanded(child: child),

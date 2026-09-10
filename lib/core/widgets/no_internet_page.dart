@@ -10,27 +10,25 @@ class NoInternetPage extends StatelessWidget {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: AppDimensions.screenPadding,
-          ),
+          padding: EdgeInsets.symmetric(horizontal: 16.0),
           child: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: AppDimensions.w(96),
-                  height: AppDimensions.w(96),
+                  width: 96,
+                  height: 96,
                   decoration: BoxDecoration(
                     color: StaticColors.orange_aia.withAlpha(40),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     Icons.wifi_off_rounded,
-                    size: AppDimensions.w(44),
+                    size: 44,
                     color: StaticColors.orange_aia,
                   ),
                 ),
-                SizedBox(height: AppDimensions.h(28)),
+                SizedBox(height: 28),
                 Text(
                   'No internet connection',
                   textAlign: TextAlign.center,
@@ -44,7 +42,7 @@ class NoInternetPage extends StatelessWidget {
                     ),
                   ),
                 ),
-                SizedBox(height: AppDimensions.h(12)),
+                SizedBox(height: 12),
                 Text(
                   'Please check your connection and try again.',
                   textAlign: TextAlign.center,

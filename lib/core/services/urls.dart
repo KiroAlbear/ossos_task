@@ -8,6 +8,9 @@ class Urls {
 
   static const String getLocalizationStrings = "";
 
+  // TODO: Replace with the real store-list endpoint.
+  static const String getStores = 'https://example.com/stores';
+
   static String get getRegions {
     return "$baseUrl/api/mobile/regions";
   }

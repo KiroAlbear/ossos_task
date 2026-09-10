@@ -4,7 +4,6 @@ library;
 
 export 'colors/generic_colors.dart';
 export 'colors/static_colors.dart';
-export 'dimensions/app_dimensions.dart';
 export 'extensions/extensions.dart';
 export 'font/app_font_sizes.dart';
 export 'font/app_font_weights.dart';

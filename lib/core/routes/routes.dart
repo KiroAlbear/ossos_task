@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ossos_task/core/routes/navigation_type.dart';
+import 'package:ossos_task/features/store_selection/domain/use_cases/store_selection_usecase.dart';
+import 'package:ossos_task/features/store_selection/presentation/blocs/store_selection_bloc.dart';
+import 'package:ossos_task/features/store_selection/presentation/pages/store_selection_page.dart';
 import 'package:ossos_task/features/test_feature/test_feature.dart';
+
+import '../services/service_locator.dart';
 
 class Routes {
   Routes._();
@@ -10,27 +15,42 @@ class Routes {
   static final GlobalKey<NavigatorState> rootNavigatorKey =
       GlobalKey<NavigatorState>();
 
-  static const String testFeatureScreen = '/testFeatureScreen';
+  // static const String testFeatureScreen = '/testFeatureScreen';
+  static const String storeSelectionScreen = '/storeSelectionScreen';
 
   static final GoRouter goRouter = GoRouter(
-    initialLocation: testFeatureScreen,
+    initialLocation: storeSelectionScreen,
     navigatorKey: rootNavigatorKey,
     debugLogDiagnostics: false,
     routes: <RouteBase>[
-      GoRoute(path: '/', redirect: (context, state) => testFeatureScreen),
+      // GoRoute(path: '/', redirect: (context, state) => testFeatureScreen),
       GoRoute(
-        path: testFeatureScreen,
-        name: testFeatureScreen,
+        path: storeSelectionScreen,
+        name: storeSelectionScreen,
         parentNavigatorKey: rootNavigatorKey,
         pageBuilder: (context, state) => _fadeTransitionScreenWrapper(
           context,
           state,
           BlocProvider(
-            create: (_) => TestFeatureBloc(),
-            child: const TestFeaturePage(),
+            create: (_) => StoreSelectionBloc(getIt<StoreSelectionUseCase>()),
+            child: const StoreSelectionPage(),
           ),
         ),
       ),
+
+      // GoRoute(
+      //   path: testFeatureScreen,
+      //   name: testFeatureScreen,
+      //   parentNavigatorKey: rootNavigatorKey,
+      //   pageBuilder: (context, state) => _fadeTransitionScreenWrapper(
+      //     context,
+      //     state,
+      //     BlocProvider(
+      //       create: (_) => TestFeatureBloc(),
+      //       child: const TestFeaturePage(),
+      //     ),
+      //   ),
+      // ),
     ],
   );
 

@@ -8,7 +8,7 @@ mixin ApiHelperMixin {
     String path, {
     bool authorizedApi = false,
     Object? body,
-    ApiResponseModel Function(Map<String, dynamic>)? customResponseModel,
+    ApiResponseModel Function(dynamic)? customResponseModel,
     T Function(Map<String, dynamic>)? mapDataConverter,
     T Function(dynamic)? dynamicDataConverter,
   }) async {
@@ -38,7 +38,7 @@ mixin ApiHelperMixin {
   Future<T> postData<T>(
     String path, {
     bool authorizedApi = false,
-    ApiResponseModel Function(Map<String, dynamic>)? customResponseModel,
+    ApiResponseModel Function(dynamic)? customResponseModel,
     Map<String, dynamic>? body,
     FormData? formDataBody,
     T Function(Map<String, dynamic>)? mapDataConverter,
@@ -71,7 +71,7 @@ mixin ApiHelperMixin {
 
 dynamic handleStatusCode({
   required Response<dynamic> response,
-  ApiResponseModel Function(Map<String, dynamic>)? customResponseModel,
+  ApiResponseModel Function(dynamic)? customResponseModel,
   Function(Map<String, dynamic>)? mapDataConverter,
   Function(dynamic)? dynamicDataConverter,
 }) {
@@ -92,7 +92,7 @@ dynamic handleStatusCode({
 
 ApiResponseModel handleApiResponseModel(
   Response<dynamic> response,
-  ApiResponseModel Function(Map<String, dynamic>)? customResponseModel,
+  ApiResponseModel Function(dynamic)? customResponseModel,
 ) {
   ApiResponseModel apiResponse;
   try {

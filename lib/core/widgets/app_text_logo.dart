@@ -12,8 +12,8 @@ class AppTextLogo extends StatelessWidget {
       children: [
         // SvgThemeSwitcher(svgPath: Assets.svg.logo.path),
         SizedBox(
-          width: AppDimensions.w(24),
-          height: AppDimensions.h(24),
+          width: 24,
+          height: 24,
           child: WidgetThemeSwitcher(
             lightWidget: Assets.png.logoAuthIconDark.image(),
             darkWidget: Assets.png.logoAuthIconLight.image(),

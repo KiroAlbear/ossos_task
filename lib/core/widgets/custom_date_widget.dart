@@ -16,7 +16,7 @@ class CustomDateWidget extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Icon(Icons.remove_moderator_outlined),
-        AppDimensions.w(6).pw,
+        6.pw,
         Text(
           "$prefixText${AppUtils.getLocalizedDate(notFormatedDate)}",
           style: AppTextStyles.create(

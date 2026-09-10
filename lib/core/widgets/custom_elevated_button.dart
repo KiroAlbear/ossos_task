@@ -39,10 +39,12 @@ class CustomElevatedButton extends StatelessWidget {
       onPressed: onPressed,
       elevation: WidgetStateProperty.all(0),
       side: WidgetStateProperty.all(
-        BorderSide(color: GenericColors.getColors(
-          context,
-          GenericColors.textFieldBorder,
-        )),
+        BorderSide(
+          color: GenericColors.getColors(
+            context,
+            GenericColors.textFieldBorder,
+          ),
+        ),
       ),
       suffix: suffix,
       backgroundColor: GenericColors.getColors(
@@ -71,10 +73,12 @@ class CustomElevatedButton extends StatelessWidget {
       elevation: WidgetStateProperty.all(0),
       padding: EdgeInsets.zero,
       side: WidgetStateProperty.all(
-        BorderSide(color: GenericColors.getColors(
-          context,
-          GenericColors.textFieldBorder,
-        )),
+        BorderSide(
+          color: GenericColors.getColors(
+            context,
+            GenericColors.textFieldBorder,
+          ),
+        ),
       ),
       backgroundColor: GenericColors.getColors(
         context,
@@ -88,7 +92,7 @@ class CustomElevatedButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: width,
-      height: height ?? AppDimensions.buttonHeight,
+      height: height ?? 43,
       child: ElevatedButton(
         onPressed: isEnabled ? onPressed : null,
         style: ButtonStyle(

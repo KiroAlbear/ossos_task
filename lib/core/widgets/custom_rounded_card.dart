@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:ossos_task/imports.dart';
+
 // import 'package:ossos_task/config/colors/index.dart';
-// import 'package:ossos_task/config/dimensions/index.dart';
 
 class CustomRoundedCard extends StatelessWidget {
   final Widget child;
@@ -15,7 +14,7 @@ class CustomRoundedCard extends StatelessWidget {
       height: height,
       width: width,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppDimensions.cardBorderRadius),
+        borderRadius: BorderRadius.circular(5),
         color: Colors.white,
         border: Border.all(color: Colors.white, width: 1),
       ),

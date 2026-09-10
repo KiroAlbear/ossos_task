@@ -71,7 +71,7 @@ abstract class BaseStatefullState<T extends BaseStatefulWidget> extends State<T>
 
   double appTopPadding() => 0;
 
-  double appPagePadding() => AppDimensions.screenPadding;
+  double appPagePadding() => 16.0;
 
   String? appBarTitle() => null;
 
@@ -194,7 +194,10 @@ abstract class BaseStatefullState<T extends BaseStatefulWidget> extends State<T>
   static Future<void> handleCloseApplication(BuildContext context) async {
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
       await showModalBottomSheet(
-        backgroundColor: GenericColors.getColors(context, GenericColors.white_blue148),
+        backgroundColor: GenericColors.getColors(
+          context,
+          GenericColors.white_blue148,
+        ),
         context: Routes.rootNavigatorKey.currentContext!,
         builder: (context) {
           return DialogWidget(

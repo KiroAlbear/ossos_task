@@ -30,9 +30,7 @@ class AuthenticationAccountSwitch extends StatelessWidget {
         ),
         CustomInkWell(
           onTap: onPressed,
-          edgeInsets: EdgeInsetsDirectional.symmetric(
-            vertical: AppDimensions.h(5),
-          ),
+          edgeInsets: EdgeInsetsDirectional.symmetric(vertical: 5),
           child: Text(
             clickableText,
             style: AppTextStyles.create(

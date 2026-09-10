@@ -62,7 +62,7 @@ class ParentPage extends StatelessWidget {
             backgroundColor: Colors.transparent,
             body: Padding(
               padding: EdgeInsets.symmetric(
-                horizontal: containPadding ? AppDimensions.screenPadding : 0,
+                horizontal: containPadding ? 16.0 : 0,
               ),
               child: _buildWidgetTree(context),
             ),

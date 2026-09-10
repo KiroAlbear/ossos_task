@@ -49,7 +49,7 @@ class _BaseBlocState<
   Widget _buildSuccessWidget(T state) {
     return Padding(
       padding: EdgeInsetsDirectional.symmetric(
-        horizontal: widget.horizontalPadding ? AppDimensions.screenPadding : 0,
+        horizontal: widget.horizontalPadding ? 16.0 : 0,
       ),
       child: widget.builder(state) ?? const SizedBox(),
     );
@@ -63,11 +63,14 @@ class _BaseBlocState<
         PositionedDirectional(
           top: 0,
           bottom: 0,
-          start: -AppDimensions.screenPadding,
-          end: -AppDimensions.screenPadding,
+          start: -16.0,
+          end: -16.0,
           child: AbsorbPointer(
             child: Container(
-              color: GenericColors.getColors(context, GenericColors.blue148_white).withAlpha(60),
+              color: GenericColors.getColors(
+                context,
+                GenericColors.blue148_white,
+              ).withAlpha(60),
               child: Center(child: widget.loadingWidget),
             ),
           ),

@@ -138,9 +138,9 @@ class _CustomTextFieldState extends State<CustomTextField> {
           decoration: InputDecoration(
             contentPadding: EdgeInsetsDirectional.only(
               start: 0,
-              end: AppDimensions.w(14),
-              top: AppDimensions.h(13),
-              bottom: AppDimensions.h(13),
+              end: 14,
+              top: 13,
+              bottom: 13,
             ),
             prefixIcon: widget.type == CustomTextfieldType.phone
                 ? _getCountryPickerPrefix()

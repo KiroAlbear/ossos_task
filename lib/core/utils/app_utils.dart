@@ -182,8 +182,8 @@ class AppUtils {
       backgroundColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(AppDimensions.cardBorderRadius),
-          topRight: Radius.circular(AppDimensions.cardBorderRadius),
+          topLeft: Radius.circular(5),
+          topRight: Radius.circular(5),
         ),
       ),
       context: context,

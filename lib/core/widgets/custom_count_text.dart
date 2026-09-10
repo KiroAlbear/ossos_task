@@ -13,7 +13,7 @@ class CustomCountText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsetsDirectional.only(start: AppDimensions.w(4)),
+      padding: EdgeInsetsDirectional.only(start: 4),
       child: Text(
         "$title ($episodesCount)",
         style: AppTextStyles.create(

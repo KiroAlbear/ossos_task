@@ -26,17 +26,20 @@ class CustomAppar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       scrolledUnderElevation: 0,
       leading: Padding(
-        padding: EdgeInsetsDirectional.only(start: AppDimensions.screenPadding),
+        padding: EdgeInsetsDirectional.only(start: 16.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             withBackArrow
                 ? CustomElevatedButton(
-                    width: AppDimensions.w(34),
-                    height: AppDimensions.h(34),
+                    width: 34,
+                    height: 34,
                     padding: EdgeInsets.zero,
                     elevation: WidgetStateProperty.all(0),
-                    backgroundColor: GenericColors.getColors(context, GenericColors.textFieldBackground),
+                    backgroundColor: GenericColors.getColors(
+                      context,
+                      GenericColors.textFieldBackground,
+                    ),
                     side: WidgetStateProperty.all(
                       const BorderSide(color: StaticColors.blue_148_opactiy14),
                     ),
@@ -47,8 +50,11 @@ class CustomAppar extends StatelessWidget implements PreferredSizeWidget {
                             Navigator.pop(context);
                           }
                         },
-                    child: SvgThemeSwitcher(svgPath:  Assets.svg.arrowBack.path,   width: AppDimensions.w(6),
-                      height: AppDimensions.h(9),)
+                    child: SvgThemeSwitcher(
+                      svgPath: Assets.svg.arrowBack.path,
+                      width: 6,
+                      height: 9,
+                    ),
                   )
                 // SizedBox(
                 //         child: InkWell(
@@ -87,12 +93,12 @@ class CustomAppar extends StatelessWidget implements PreferredSizeWidget {
           ],
         ),
       ),
-      leadingWidth: AppDimensions.fw(),
+      leadingWidth: MediaQuery.sizeOf(context).width,
       backgroundColor: Colors.transparent,
-      toolbarHeight: AppDimensions.appBarHeight,
+      toolbarHeight: 50,
     );
   }
 
   @override
-  Size get preferredSize => Size.fromHeight(AppDimensions.appBarHeight);
+  Size get preferredSize => Size.fromHeight(50);
 }

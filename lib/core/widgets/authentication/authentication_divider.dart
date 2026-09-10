@@ -12,9 +12,7 @@ class AuthenticationDivider extends StatelessWidget {
       children: [
         Expanded(child: buildDivider(context)),
         Padding(
-          padding: EdgeInsetsDirectional.symmetric(
-            horizontal: AppDimensions.w(10),
-          ),
+          padding: EdgeInsetsDirectional.symmetric(horizontal: 10),
           child: Text(
             text,
             style: AppTextStyles.create(
@@ -32,8 +30,10 @@ class AuthenticationDivider extends StatelessWidget {
     );
   }
 
-  Divider buildDivider(BuildContext context) => Divider(color: GenericColors.getColors(
-    context,
-    GenericColors.blue148_opacity38_white_opacity36,
-  ));
+  Divider buildDivider(BuildContext context) => Divider(
+    color: GenericColors.getColors(
+      context,
+      GenericColors.blue148_opacity38_white_opacity36,
+    ),
+  );
 }

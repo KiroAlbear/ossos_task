@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../colors/generic_colors.dart';
-import '../dimensions/app_dimensions.dart';
 import 'app_font_weights.dart';
 import 'font_family_constants.dart';
 
@@ -23,12 +22,12 @@ class AppTextStyles {
       color:
           color ?? GenericColors.getColors(context, GenericColors.black_white),
       fontSize: fontSize,
-      height: height ?? AppDimensions.textHeight,
+      height: height ?? 1,
       fontFamily: fontFamily,
       decoration: decoration,
       decorationColor: color,
       fontWeight: fontWeight,
-      overflow: TextOverflow.ellipsis
+      overflow: TextOverflow.ellipsis,
     );
   }
 }

@@ -28,8 +28,8 @@ class CustomImageAvatar extends StatelessWidget {
       backgroundColor: backgroundColor,
       child: Center(
         child: SizedBox(
-          height: imageSize?.height ?? radius * 2 - AppDimensions.w(5),
-          width: imageSize?.width ?? radius * 2 - AppDimensions.w(5),
+          height: imageSize?.height ?? radius * 2 - 5,
+          width: imageSize?.width ?? radius * 2 - 5,
           child: Builder(
             builder: (BuildContext context) {
               if (showAssetImage) {
@@ -38,11 +38,8 @@ class CustomImageAvatar extends StatelessWidget {
                 } else {
                   return Center(
                     child: SizedBox(
-                      height:
-                          imageSize?.height ??
-                          radius * 1.5 - AppDimensions.w(5),
-                      width:
-                          imageSize?.width ?? radius * 1.5 - AppDimensions.w(5),
+                      height: imageSize?.height ?? radius * 1.5 - 5,
+                      width: imageSize?.width ?? radius * 1.5 - 5,
                       child: SvgPicture.asset(
                         iconUrl!,
                         color:

@@ -27,7 +27,7 @@ class CustomFieldSurface extends StatelessWidget {
         color:
             backgroundColor ??
             GenericColors.getColors(context, GenericColors.textFieldBackground),
-        borderRadius: BorderRadius.circular(AppDimensions.w(borderRadius)),
+        borderRadius: BorderRadius.circular(borderRadius),
         border: Border.all(
           color:
               borderColor ??

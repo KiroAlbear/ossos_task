@@ -17,24 +17,21 @@ class ToastWidget extends StatelessWidget {
       child: Padding(
         padding: EdgeInsetsDirectional.symmetric(horizontal: 18),
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: AppDimensions.w(520)),
+          constraints: BoxConstraints(maxWidth: 520),
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: backgroundColor,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: AppDimensions.w(24),
-                vertical: AppDimensions.h(10),
-              ),
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 10),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    width: AppDimensions.w(26),
-                    height: AppDimensions.w(26),
+                    width: 26,
+                    height: 26,
                     decoration: const BoxDecoration(
                       color: StaticColors.white,
                       shape: BoxShape.circle,
@@ -42,10 +39,10 @@ class ToastWidget extends StatelessWidget {
                     child: Icon(
                       Icons.priority_high_rounded,
                       color: backgroundColor,
-                      size: AppDimensions.w(20),
+                      size: 20,
                     ),
                   ),
-                  SizedBox(width: AppDimensions.w(12)),
+                  SizedBox(width: 12),
                   Flexible(
                     child: Text(
                       message,

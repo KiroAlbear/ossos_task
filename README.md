@@ -2,6 +2,25 @@
 
 A new Flutter project.
 
+## Windows Android builds
+
+Keep the Pub cache on the same drive as the project. Kotlin incremental
+compilation cannot store relative source paths across Windows drive letters.
+For a checkout on `I:`, configure PowerShell once:
+
+```powershell
+[Environment]::SetEnvironmentVariable('PUB_CACHE', 'I:\Pub\Cache', 'User')
+$env:PUB_CACHE = 'I:\Pub\Cache'
+flutter clean
+flutter pub get
+flutter build apk --debug
+```
+
+Restart your IDE and existing terminals after setting the user environment
+variable so future package resolution uses the new cache. If the checkout moves
+to another drive, update `PUB_CACHE` to match. Kotlin incremental compilation
+remains enabled in `android/gradle.properties`.
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.

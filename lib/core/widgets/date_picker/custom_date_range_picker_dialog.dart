@@ -21,8 +21,8 @@ class CustomDateRangePickerDialog extends StatelessWidget {
         ).data,
       ),
       child: AlertDialog(
-        contentPadding: EdgeInsets.only(bottom: AppDimensions.w(0)),
-        insetPadding: EdgeInsets.symmetric(horizontal: AppDimensions.w(16)),
+        contentPadding: EdgeInsets.only(bottom: 0),
+        insetPadding: EdgeInsets.symmetric(horizontal: 16),
         content: CustomDateRangePicker(onSelectionChanged: onSelectionChanged),
       ),
     );
