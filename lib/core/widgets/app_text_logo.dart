@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:ossos_task/gen/assets.gen.dart';
 
-import '../../config/config.dart';
 import '../../imports.dart';
 
 class AppTextLogo extends StatelessWidget {

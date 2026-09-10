@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Feature"
+  short_description: "Scaffold a Zada clean-architecture feature"
+  default_prompt: "Use $create-feature to create a new feature matching test_feature without tests."

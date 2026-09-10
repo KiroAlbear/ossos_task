@@ -1,4 +1,3 @@
-import 'package:ossos_task/core/base/status.dart';
 
 abstract class BaseBlocState {}
 

@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:ossos_task/config/themes/widgets_themes/icon_button_themes/custom_icon_button_theme.dart';
-import 'package:ossos_task/config/themes/widgets_themes/text_button_themes/custom_text_button_theme.dart';
 import 'package:ossos_task/imports.dart';
 
 ThemeData lightTheme(BuildContext context) => ThemeData(

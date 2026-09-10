@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'remote_response.dart';
@@ -9,6 +9,7 @@ part of 'remote_response.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
@@ -20,7 +21,7 @@ mixin _$RemoteResponse<T> {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is RemoteResponse<T>);
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is RemoteResponse<T>);
 }
 
 
@@ -29,7 +30,7 @@ int get hashCode => runtimeType.hashCode;
 
 @override
 String toString() {
-  return 'RemoteResponse<$T>()';
+    return 'RemoteResponse<$T>()';
 }
 
 
@@ -197,7 +198,7 @@ class _NoConnection<T> extends RemoteResponse<T> {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _NoConnection<T>);
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _NoConnection<T>);
 }
 
 
@@ -206,7 +207,7 @@ int get hashCode => runtimeType.hashCode;
 
 @override
 String toString() {
-  return 'RemoteResponse<$T>.noConnection()';
+    return 'RemoteResponse<$T>.noConnection()';
 }
 
 
@@ -235,16 +236,18 @@ _$FailureCopyWith<T, _Failure<T>> get copyWith => __$FailureCopyWithImpl<T, _Fai
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Failure<T>&&(identical(other.message, message) || other.message == message)&&(identical(other.success, success) || other.success == success));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Failure<T>&&(identical(other.message, message) || other.message == message)&&(identical(other.success, success) || other.success == success));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,message,success);
+int get hashCode {
+    return Object.hash(runtimeType,message,success);
+}
 
 @override
 String toString() {
-  return 'RemoteResponse<$T>.failure(message: $message, success: $success)';
+    return 'RemoteResponse<$T>.failure(message: $message, success: $success)';
 }
 
 
@@ -302,16 +305,18 @@ _$DataCopyWith<T, _Data<T>> get copyWith => __$DataCopyWithImpl<T, _Data<T>>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Data<T>&&const DeepCollectionEquality().equals(other.data, data));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Data<T>&&const DeepCollectionEquality().equals(other.data, data));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(data));
+int get hashCode {
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(data));
+}
 
 @override
 String toString() {
-  return 'RemoteResponse<$T>.data(data: $data)';
+    return 'RemoteResponse<$T>.data(data: $data)';
 }
 
 

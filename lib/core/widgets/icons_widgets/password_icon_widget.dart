@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:ossos_task/core/core.dart';
 
 import '../../../gen/assets.gen.dart';

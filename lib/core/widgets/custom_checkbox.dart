@@ -3,7 +3,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:ossos_task/config/config.dart';
 
-import '../../config/extensions/extensions.dart';
 
 class CustomCheckbox extends StatelessWidget {
   final bool value;
