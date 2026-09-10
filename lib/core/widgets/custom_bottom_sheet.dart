@@ -1,0 +1,50 @@
+import 'package:flutter/material.dart';
+import 'package:ossos_task/imports.dart';
+
+class CustomBottomSheet extends StatelessWidget {
+  final Widget child;
+  final double? height;
+  CustomBottomSheet({required this.child, this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      width: MediaQuery.of(context).size.width,
+      padding: EdgeInsets.only(bottom: 30),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(AppDimensions.bottomSheetBorderRadius),
+          topRight: Radius.circular(AppDimensions.bottomSheetBorderRadius),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(height: 14),
+          Container(
+            height: 8,
+            width: 50,
+            decoration: BoxDecoration(
+              color: StaticColors.gray_b1b,
+              borderRadius: BorderRadius.all(
+                Radius.circular(AppDimensions.cardBorderRadius),
+              ),
+            ),
+          ),
+          SizedBox(height: 20),
+          Container(
+            child: child,
+            // height: AppDimensions.fh() * .3,
+            // child: Column(
+            //   children: [
+            //     Expanded(child: child),
+            //   ],
+            // ),
+          ),
+        ],
+      ),
+    );
+  }
+}
