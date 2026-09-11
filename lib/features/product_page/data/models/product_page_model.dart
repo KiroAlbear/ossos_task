@@ -4,11 +4,13 @@ class ProductPageModel {
   final List<ProductModel> data;
   final int page;
   final int totalPages;
+  final int? totalItems;
 
   ProductPageModel({
     required List<ProductModel> data,
     required this.page,
     required this.totalPages,
+    this.totalItems,
   }) : data = List.unmodifiable(data);
 
   bool get hasNextPage => page < totalPages;
@@ -20,6 +22,7 @@ class ProductPageModel {
           .toList(),
       page: json['page'] as int,
       totalPages: json['totalPages'] as int,
+      totalItems: json['totalItems'] as int?,
     );
   }
 
@@ -27,5 +30,6 @@ class ProductPageModel {
     'data': data.map((product) => product.toJson()).toList(),
     'page': page,
     'totalPages': totalPages,
+    if (totalItems != null) 'totalItems': totalItems,
   };
 }

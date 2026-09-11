@@ -11,3 +11,4 @@ export 'domain/use_cases/product_page_usecase.dart';
 export 'presentation/blocs/product_page_bloc.dart';
 export 'presentation/blocs/product_page_event.dart';
 export 'presentation/blocs/product_page_state.dart';
+export 'presentation/pages/product_page.dart';

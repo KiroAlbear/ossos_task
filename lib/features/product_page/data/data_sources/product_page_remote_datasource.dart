@@ -217,6 +217,7 @@ class ProductPageRemoteDataSourceImpl
       data: paginatedProducts,
       page: page,
       totalPages: totalPages,
+      totalItems: products.length,
     );
 
     await Future<void>.delayed(const Duration(seconds: 1));

@@ -1,0 +1,1032 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lazy_load_scrollview/lazy_load_scrollview.dart';
+import 'package:ossos_task/imports.dart';
+
+enum ProductCountStatus { savedLocally, pendingSync, conflict, synced }
+
+enum _CountFilter { all, counted, notCounted, conflicts }
+
+/// Counts are saved per store. Supply callbacks to connect submission/scanning
+/// and image/status maps when these are available from the inventory service.
+class ProductPage extends BaseStatefulWidget {
+  final String storeName;
+  final String storeId;
+  final ProductPageBloc? bloc;
+  final Map<int, String> imageUrls;
+  final Map<int, ProductCountStatus> statuses;
+  final Future<void> Function(Map<int, int> counts)? onSubmit;
+  final Future<String?> Function()? onScan;
+
+  const ProductPage({
+    super.key,
+    this.storeName = 'Cairo Store',
+    this.storeId = 'cairo',
+    this.bloc,
+    this.imageUrls = const {},
+    this.statuses = const {},
+    this.onSubmit,
+    this.onScan,
+  });
+
+  @override
+  State<ProductPage> createState() => _ProductPageState();
+}
+
+class _ProductPageState extends BaseStatefullState<ProductPage> {
+  static const _blue = Color(0xFF0074F5);
+  static const _ink = Color(0xFF101521);
+  static const _muted = Color(0xFF728098);
+  static const _border = Color(0xFFE6EAF0);
+  static const _pageSize = 10;
+  late final ProductPageBloc _bloc;
+  final _scroll = ScrollController();
+  final _search = TextEditingController();
+  final _products = <int, ProductModel>{};
+  final _counts = <int, int>{};
+  final _savedCounts = <int, int>{};
+  final _editedIds = <int>{};
+  final _controllers = <int, TextEditingController>{};
+  Future<void> _saveQueue = Future<void>.value();
+  _CountFilter _filter = _CountFilter.all;
+  int _page = 0;
+  int? _total;
+  bool _hasMore = true;
+  bool _loading = false;
+  bool _restoring = true;
+  bool _submitting = false;
+  String? _error;
+  String? _storageError;
+  String get _storageKey => 'product_counts_${widget.storeId}';
+
+  @override
+  void initState() {
+    super.initState();
+    _bloc = widget.bloc ?? getIt<ProductPageBloc>();
+    _restore();
+    // Subscribe to the Bloc before the first request can finish.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadMore();
+    });
+  }
+
+  Future<void> _restore() async {
+    try {
+      final raw = await SecureStorageManager.getInstance().getValue(
+        _storageKey,
+      );
+      if (!mounted) return;
+      if (raw != null) {
+        final data = jsonDecode(raw) as Map<String, dynamic>;
+        for (final entry in data.entries) {
+          final id = int.tryParse(entry.key);
+          if (id != null && entry.value is int && (entry.value as int) >= 0) {
+            _counts[id] = entry.value as int;
+          }
+        }
+        _savedCounts.addAll(_counts);
+      }
+    } catch (_) {
+      if (mounted) _storageError = 'Could not restore locally saved counts.';
+    } finally {
+      if (mounted) {
+        setState(() => _restoring = false);
+        _fillViewport();
+      }
+    }
+  }
+
+  void _loadMore() {
+    if (_loading || !_hasMore) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    _bloc.add(LoadProductsEvent(page: _page + 1, limit: _pageSize));
+  }
+
+  void _receive(BuildContext context, BaseBlocState state) {
+    if (state is ProductPageState) {
+      setState(() {
+        for (final product in state.products) {
+          _products[product.id] = product;
+        }
+        _page = state.page;
+        _hasMore = state.hasNextPage;
+        _total =
+            state.productPage.totalItems ??
+            (_hasMore ? null : _products.length);
+        _loading = false;
+        _error = null;
+      });
+      _fillViewport();
+    } else if (state is ErrorState) {
+      setState(() {
+        _loading = false;
+        _error = state.errorMessage ?? 'Unable to load products.';
+      });
+    }
+  }
+
+  void _fillViewport() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _error != null || !_scroll.hasClients) return;
+      // Filtering is local, so fetch remaining pages to search the whole catalog.
+      if (_search.text.isNotEmpty ||
+          _filter != _CountFilter.all ||
+          _scroll.position.maxScrollExtent <= 0) {
+        _loadMore();
+      }
+    });
+  }
+
+  void _changeCount(int id, String value) {
+    setState(() {
+      _editedIds.add(id);
+      final count = int.tryParse(value);
+      if (count == null) {
+        _counts.remove(id);
+      } else {
+        _counts[id] = count;
+      }
+    });
+    final snapshot = Map<int, int>.of(_counts);
+    final key = _storageKey;
+    // Serialize writes so an older edit cannot overwrite a newer count.
+    _saveQueue = _saveQueue.then((_) async {
+      try {
+        await SecureStorageManager.getInstance().setObject(
+          key,
+          snapshot.map((id, value) => MapEntry(id.toString(), value)),
+        );
+        if (!mounted) return;
+        setState(() {
+          _savedCounts
+            ..clear()
+            ..addAll(snapshot);
+          _storageError = null;
+        });
+      } catch (_) {
+        if (mounted) {
+          setState(
+            () =>
+                _storageError = 'Could not save changes locally. Please retry.',
+          );
+        }
+      }
+    });
+  }
+
+  ProductCountStatus? _status(int id) {
+    if (_counts.containsKey(id)) {
+      if (_savedCounts[id] != _counts[id]) return null;
+      return _editedIds.contains(id)
+          ? ProductCountStatus.savedLocally
+          : widget.statuses[id] ?? ProductCountStatus.savedLocally;
+    }
+    return _editedIds.contains(id) ? null : widget.statuses[id];
+  }
+
+  List<ProductModel> get _visible {
+    final query = _search.text.trim().toLowerCase();
+    return _products.values.where((p) {
+      final matches =
+          query.isEmpty ||
+          '${p.name} ${p.sku} ${p.barcode}'.toLowerCase().contains(query);
+      return matches &&
+          switch (_filter) {
+            _CountFilter.all => true,
+            _CountFilter.counted => _counts.containsKey(p.id),
+            _CountFilter.notCounted => !_counts.containsKey(p.id),
+            _CountFilter.conflicts =>
+              _status(p.id) == ProductCountStatus.conflict,
+          };
+    }).toList();
+  }
+
+  Future<void> _scan() async {
+    if (widget.onScan != null) {
+      try {
+        final barcode = await widget.onScan!();
+        if (!mounted || barcode == null) return;
+        setState(() => _search.text = barcode);
+        _fillViewport();
+      } catch (_) {
+        if (mounted) _message('Unable to scan the barcode. Please try again.');
+      }
+      return;
+    }
+    final controller = TextEditingController();
+    final barcode = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Find by barcode',
+          style: AppTextStyles.create(
+            context,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: AppTextStyles.create(context, fontSize: 16),
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: 'Barcode',
+            labelStyle: AppTextStyles.create(
+              context,
+              fontSize: 16,
+              color: _muted,
+            ),
+          ),
+          onSubmitted: (value) => Navigator.pop(context, value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: AppTextStyles.create(context, fontSize: 14, color: _blue),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: Text(
+              'Find',
+              style: AppTextStyles.create(context, fontSize: 14, color: _blue),
+            ),
+          ),
+        ],
+      ),
+    );
+    // The dialog's exit animation may still reference its controller.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    controller.dispose();
+    if (!mounted || barcode == null) return;
+    setState(() => _search.text = barcode);
+    _fillViewport();
+  }
+
+  void _message(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: AppTextStyles.create(
+            context,
+            fontSize: 14,
+            color: Colors.white,
+          ),
+          overflow: TextOverflow.visible,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
+    setState(() => _submitting = true);
+    try {
+      await _saveQueue;
+      if (!mounted) return;
+      if (_storageError != null) {
+        _message(_storageError!);
+        return;
+      }
+      if (widget.onSubmit == null) {
+        await showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(
+              'Count saved locally',
+              style: AppTextStyles.create(
+                context,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            content: Text(
+              '${_counts.length} product counts are saved on this device. Server submission is not connected yet.',
+              style: AppTextStyles.create(context, fontSize: 14),
+              overflow: TextOverflow.visible,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Done',
+                  style: AppTextStyles.create(
+                    context,
+                    fontSize: 14,
+                    color: _blue,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      } else {
+        await widget.onSubmit!(Map<int, int>.unmodifiable(_counts));
+        if (mounted) _message('Count submitted.');
+      }
+    } catch (_) {
+      if (mounted) {
+        _message('Unable to submit. Your local counts are retained.');
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    _search.dispose();
+    for (final controller in _controllers.values) {
+      controller.dispose();
+    }
+    if (widget.bloc == null) unawaited(_bloc.close());
+    super.dispose();
+  }
+
+@override
+  String? appBarTitle() => 'Product Count';
+
+
+  @override
+  String? appBarSubtitle() => widget.storeName;
+
+  @override
+  Widget? customBottomNavBar() => _footer();
+
+  @override
+  Widget getBody(BuildContext context) {
+    return BlocListener<ProductPageBloc, BaseBlocState>(
+      bloc: _bloc,
+      listener: _receive,
+      child: Column(
+          children: [
+            Column(
+              children: [
+                _offlineBanner(),
+                SizedBox(height: 9),
+                _searchField(),
+                SizedBox(height: 8),
+                _filters(),
+                SizedBox(height: 8),
+              ],
+            ),
+            Expanded(child: _list()),
+          ],
+        ),
+
+    );
+  }
+
+  Widget _offlineBanner() => Container(
+    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+    decoration: BoxDecoration(
+      color: const Color(0xFFE7F2FF),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Row(
+      children: [
+        Icon(Icons.cloud_off_outlined, color: _blue, size: 21),
+        SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            _storageError ?? 'Offline mode — changes are saved locally',
+            style: AppTextStyles.create(
+              context,
+              fontSize: 11.5,
+              color: _storageError == null
+                  ? const Color(0xFF005BCD)
+                  : Colors.red,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        SizedBox(
+          width: 30,
+          height: 24,
+          child: IconButton(
+            padding: EdgeInsets.zero,
+            tooltip: 'About offline counts',
+            icon: Icon(Icons.info_outline, color: _blue, size: 18),
+            onPressed: () => _message(
+              'Counts are stored on this device for ${widget.storeName}.',
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _searchField() => TextField(
+    controller: _search,
+    style: AppTextStyles.create(context, fontSize: 13),
+    onChanged: (_) {
+      setState(() {});
+      _fillViewport();
+    },
+    decoration: InputDecoration(
+      hintText: 'Search by product name, SKU, barcode',
+      hintStyle: AppTextStyles.create(context, fontSize: 12.5, color: _muted),
+      filled: true,
+      fillColor: const Color(0xFFF2F4F7),
+      contentPadding: EdgeInsets.symmetric(vertical: 13),
+      prefixIcon: Icon(Icons.search, color: const Color(0xFF526075), size: 25),
+      suffixIcon: IconButton(
+        tooltip: 'Find by barcode',
+        onPressed: _scan,
+        icon: Icon(
+          Icons.qr_code_scanner,
+          color: const Color(0xFF46536A),
+          size: 25,
+        ),
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: _border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: _border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: _blue),
+      ),
+    ),
+  );
+
+  Widget _filters() {
+    final counted = _counts.length;
+    final total = _total;
+    final conflicts = _products.keys
+        .where((id) => _status(id) == ProductCountStatus.conflict)
+        .length;
+    final labels = [
+      'All (${total ?? _products.length})',
+      'Counted ($counted)',
+      'Not Counted (${total == null ? _products.keys.where((id) => !_counts.containsKey(id)).length : (total - counted).clamp(0, total)})',
+      'Conflicts ($conflicts)',
+    ];
+    const icons = [
+      null,
+      Icons.check_circle,
+      Icons.access_time,
+      Icons.warning_amber_rounded,
+    ];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: List.generate(_CountFilter.values.length, (index) {
+          final selected = _filter == _CountFilter.values[index];
+          return Padding(
+            padding: EdgeInsets.only(right: 7),
+            child: TextButton(
+              style: TextButton.styleFrom(
+                backgroundColor: selected ? _blue : const Color(0xFFF0F3F6),
+                foregroundColor: selected ? Colors.white : _muted,
+                padding: EdgeInsets.symmetric(horizontal: 13, vertical: 13),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(11),
+                ),
+              ),
+              onPressed: () {
+                setState(() => _filter = _CountFilter.values[index]);
+                _fillViewport();
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (icons[index] != null) ...[
+                    Icon(icons[index], size: 18),
+                    SizedBox(width: 6),
+                  ],
+                  Text(
+                    labels[index],
+                    style: AppTextStyles.create(
+                      context,
+                      fontSize: 11,
+                      color: selected ? Colors.white : _muted,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _list() {
+    if (_restoring || (_products.isEmpty && _loading)) {
+      return const Center(child: CircularProgressIndicator(color: _blue));
+    }
+    final visible = _visible;
+    return LazyLoadScrollView(
+      isLoading: _loading || !_hasMore || _error != null,
+      scrollOffset: 220,
+      onEndOfPage: () {
+        if (_error == null) _loadMore();
+      },
+      child: ListView.builder(
+        controller: _scroll,
+        physics: const AlwaysScrollableScrollPhysics(),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: EdgeInsets.symmetric(horizontal: 16),
+        itemCount: visible.length + 1,
+        itemBuilder: (context, index) {
+          if (index < visible.length) return _card(visible[index]);
+          return Padding(
+            padding: EdgeInsets.all(18),
+            child: Column(
+              children: [
+                if (_loading)
+                  const CircularProgressIndicator(color: _blue)
+                else if (_error != null) ...[
+                  Text(
+                    _error!,
+                    style: AppTextStyles.create(
+                      context,
+                      fontSize: 12,
+                      color: _muted,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  TextButton(
+                    onPressed: _loadMore,
+                    child: Text(
+                      'Retry',
+                      style: AppTextStyles.create(
+                        context,
+                        fontSize: 14,
+                        color: _blue,
+                      ),
+                    ),
+                  ),
+                ] else if (visible.isEmpty)
+                  Text(
+                    'No products found.',
+                    style: AppTextStyles.create(
+                      context,
+                      fontSize: 13,
+                      color: _muted,
+                    ),
+                  )
+                else if (!_hasMore)
+                  Text(
+                    'All products loaded',
+                    style: AppTextStyles.create(
+                      context,
+                      fontSize: 11,
+                      color: _muted,
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _card(ProductModel product) {
+    final controller = _controllers.putIfAbsent(
+      product.id,
+      () => TextEditingController(text: _counts[product.id]?.toString() ?? ''),
+    );
+    final count = _counts[product.id];
+    final difference = count == null ? null : count - product.systemQuantity;
+    final imageUrl = widget.imageUrls[product.id];
+    final thumbnail = Icon(Icons.inventory_2_outlined, color: _muted, size: 32);
+    return Container(
+      key: ValueKey(product.id),
+      margin: EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x080F263E),
+            blurRadius: 7,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 58,
+                height: 60,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0F3F6),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: imageUrl == null
+                    ? thumbnail
+                    : Image.network(
+                        imageUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, error, stack) => thumbnail,
+                      ),
+              ),
+              SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            product.name,
+                            style: AppTextStyles.create(
+                              context,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 5),
+                        _badge(product.id),
+                        SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: PopupMenuButton<String>(
+                            padding: EdgeInsets.zero,
+                            tooltip: 'Product actions',
+                            icon: Icon(
+                              Icons.more_horiz,
+                              color: _muted,
+                              size: 22,
+                            ),
+                            onSelected: (_) {
+                              controller.clear();
+                              _changeCount(product.id, '');
+                            },
+                            itemBuilder: (_) => [
+                              PopupMenuItem(
+                                value: 'clear',
+                                enabled: count != null,
+                                child: Text(
+                                  'Clear count',
+                                  style: AppTextStyles.create(
+                                    context,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 4),
+                    _detail('SKU', product.sku),
+                    SizedBox(height: 3),
+                    _detail('Barcode', product.barcode),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          Padding(
+            padding: EdgeInsets.only(left: 71),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'System Qty',
+                        style: AppTextStyles.create(
+                          context,
+                          fontSize: 10,
+                          color: _muted,
+                        ),
+                      ),
+                      SizedBox(height: 5),
+                      Text(
+                        '${product.systemQuantity}',
+                        style: AppTextStyles.create(
+                          context,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _divider(),
+                Expanded(
+                  flex: 2,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Counted Qty',
+                          style: AppTextStyles.create(
+                            context,
+                            fontSize: 10,
+                            color: _muted,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 5),
+                      Expanded(
+                        child: TextField(
+                          controller: controller,
+                          enabled: !_submitting,
+                          style: AppTextStyles.create(context, fontSize: 12),
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(9),
+                          ],
+                          onChanged: (value) => _changeCount(product.id, value),
+                          decoration: InputDecoration(
+                            hintText: '—',
+                            hintStyle: AppTextStyles.create(
+                              context,
+                              fontSize: 12,
+                              color: _muted,
+                            ),
+                            isDense: true,
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 10,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(5),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFB5C1D2),
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(5),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFB5C1D2),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(5),
+                              borderSide: const BorderSide(color: _blue),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _divider(),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Difference',
+                        style: AppTextStyles.create(
+                          context,
+                          fontSize: 10,
+                          color: _muted,
+                        ),
+                      ),
+                      SizedBox(height: 5),
+                      Text(
+                        difference == null
+                            ? '—'
+                            : difference > 0
+                            ? '+$difference'
+                            : '$difference',
+                        style: AppTextStyles.create(
+                          context,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: difference == null || difference == 0
+                              ? const Color(0xFF536076)
+                              : difference < 0
+                              ? const Color(0xFFE00027)
+                              : const Color(0xFF009759),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _detail(String label, String value) => Text.rich(
+    TextSpan(
+      children: [
+        TextSpan(
+          text: '$label   ',
+          style: AppTextStyles.create(context, fontSize: 11, color: _muted),
+        ),
+        TextSpan(
+          text: value,
+          style: AppTextStyles.create(
+            context,
+            fontSize: 11,
+            color: const Color(0xFF354057),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _divider() => Container(
+    width: 1,
+    height: 28,
+    margin: EdgeInsets.symmetric(horizontal: 11),
+    color: _border,
+  );
+
+  Widget _badge(int id) {
+    final status = _status(id);
+    final (label, color, background, icon) = switch (status) {
+      ProductCountStatus.savedLocally => (
+        'Saved locally',
+        _blue,
+        const Color(0xFFE2EFFF),
+        Icons.description_outlined,
+      ),
+      ProductCountStatus.pendingSync => (
+        'Pending sync',
+        const Color(0xFFD77900),
+        const Color(0xFFFFF0D7),
+        Icons.access_time,
+      ),
+      ProductCountStatus.conflict => (
+        'Conflict',
+        const Color(0xFFE00027),
+        const Color(0xFFFFE5E9),
+        Icons.warning_amber_rounded,
+      ),
+      ProductCountStatus.synced => (
+        'Synced',
+        const Color(0xFF009454),
+        const Color(0xFFDDF4E9),
+        Icons.check_circle,
+      ),
+      null => (
+        _counts.containsKey(id)
+            ? (_storageError == null ? 'Saving…' : 'Not saved')
+            : 'Not counted',
+        _muted,
+        const Color(0xFFF0F3F6),
+        Icons.access_time,
+      ),
+    };
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 14),
+          SizedBox(width: 5),
+          Text(
+            label,
+            style: AppTextStyles.create(
+              context,
+              fontSize: 10,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _footer() {
+    final total = _total;
+    final progress = total == null || total == 0
+        ? 0.0
+        : (_counts.length / total).clamp(0.0, 1.0);
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0C1D334B),
+            blurRadius: 18,
+            offset: Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Icon(Icons.bar_chart_rounded, color: _blue, size: 28),
+            SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '${_counts.length} / ${total ?? '…'} ',
+                          style: AppTextStyles.create(
+                            context,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        TextSpan(
+                          text: 'products counted',
+                          style: AppTextStyles.create(context, fontSize: 10.5),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 7),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 7,
+                      color: _blue,
+                      backgroundColor: const Color(0xFFE1E6EE),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: 16),
+            ElevatedButton.icon(
+              onPressed: _counts.isEmpty || _restoring || _submitting
+                  ? null
+                  : _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _blue,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 17),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(11),
+                ),
+              ),
+              icon: _submitting
+                  ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Icon(Icons.send_outlined, size: 22),
+              label: Text(
+                'Submit Count',
+                style: AppTextStyles.create(
+                  context,
+                  fontSize: 13,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -71,9 +71,11 @@ abstract class BaseStatefullState<T extends BaseStatefulWidget> extends State<T>
 
   double appTopPadding() => 0;
 
-  double appPagePadding() => 16.0;
+  double appPagePadding() => 8.0;
 
   String? appBarTitle() => null;
+
+  String? appBarSubtitle() => null;
 
   Brightness? statusBarBrightness() => null;
 
@@ -156,6 +158,7 @@ abstract class BaseStatefullState<T extends BaseStatefulWidget> extends State<T>
                         ? appBarTitle() != null
                               ? CustomAppar(
                                   title: appBarTitle()!,
+                                  subtitle: appBarSubtitle(),
                                   withBackArrow:
                                       showAppbarBackArrow() ??
                                       Navigator.canPop(context),
