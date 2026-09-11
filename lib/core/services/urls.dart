@@ -9,10 +9,16 @@ class Urls {
   static const String getLocalizationStrings = "";
 
   // TODO: Replace with the real store-list endpoint.
-  static const String getStores = "https://mocki.io/v1/879eac91-5d8f-4ef2-b746-3daa509bf21e";
+  static const String getStores =
+      "https://mocki.io/v1/879eac91-5d8f-4ef2-b746-3daa509bf21e";
 
   // TODO: Replace with the real products endpoint.
   static const String getProducts = 'dummyurl';
+
+  // Supply the backend submission URL with --dart-define.
+  static const String submitInventorySession = String.fromEnvironment(
+    'INVENTORY_SESSION_ENDPOINT',
+  );
 
   static String get getRegions {
     return "$baseUrl/api/mobile/regions";

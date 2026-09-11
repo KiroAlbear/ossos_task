@@ -17,7 +17,7 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
   bool _loading = false;
   String? _error;
   bool _restoring = true;
-  final _restoredCounts = <int, int>{};
+  Map<int, int> _restoredCounts = <int, int>{};
   String? _restoreError;
   final _counts = <int, int>{};
   final _savedCounts = <int, int>{};
@@ -56,19 +56,9 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
     _restoredCounts.clear();
     _emitProducts(emit);
     try {
-      final raw = await SecureStorageManager.getInstance().getValue(
-        'product_counts_${event.storeId}',
-      );
-      if (emit.isDone) return;
-      if (raw != null) {
-        final data = jsonDecode(raw) as Map<String, dynamic>;
-        for (final entry in data.entries) {
-          final id = int.tryParse(entry.key);
-          if (id != null && entry.value is int && (entry.value as int) >= 0) {
-            _restoredCounts[id] = entry.value as int;
-          }
-        }
-      }
+
+      _restoredCounts = await _useCase.getProductsSharedPrefrences(event.storeId);
+
       _counts
         ..clear()
         ..addAll(_restoredCounts);
@@ -218,6 +208,20 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
           _loadRemainingForFilter();
         },
       );
+      final total =
+          _totalItems ?? (_page >= _totalPages ? _products.length : null);
+      if (_error == null && total != null) {
+        try {
+          await SecureStorageManager.getInstance().setValue(
+            SecureStorageKeys.productTotal,
+            total.toString(),
+          );
+        } catch (_) {
+          _storageError =
+              'Could not save the product total locally. Please retry.';
+          if (!emit.isDone) _emitProducts(emit);
+        }
+      }
     } catch (_) {
       if (emit.isDone) return;
       _loading = false;

@@ -1,6 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ossos_task/core/base/base_bloc.dart';
+import 'package:ossos_task/core/base/base_bloc_state.dart';
+import 'package:ossos_task/core/base/base_stateful_widget.dart';
+import 'package:ossos_task/core/core.dart';
+import 'package:ossos_task/core/routes/routes.dart';
+import 'package:ossos_task/features/inventory_session/inventory_session.dart';
 
-class InventorySessionPage extends StatelessWidget {
+import '../blocs/inventory_session_bloc.dart';
+import '../blocs/inventory_session_state.dart';
+
+class InventorySessionPage extends BaseStatefulWidget {
   const InventorySessionPage({super.key});
 
   static const Color primaryBlue = Color(0xFF2563EB);
@@ -12,33 +22,56 @@ class InventorySessionPage extends StatelessWidget {
   static const Color lightOrange = Color(0xFFFFF7ED);
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: pageBg,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(14),
-          children: const [
-            ActiveSessionCard(),
-            SizedBox(height: 14),
-            QuickActionsCard(),
-            SizedBox(height: 14),
-            PendingSyncCard(),
-          ],
-        ),
-      ),
-    );
+  State<InventorySessionPage> createState() => _InventorySessionPageState();
+}
+
+class _InventorySessionPageState extends BaseStatefullState<InventorySessionPage> {
+
+  @override
+  String? appBarTitle() => 'Product Count';
+
+  @override
+  String? appBarSubtitle() => 'Cairo Store';
+
+  @override
+  void initState() {
+
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      BlocProvider.of<InventorySessionBloc>(context).add(getProductsCountEvent('cairo'));
+    },);
+
+    super.initState();
+  }
+
+
+  @override
+  Widget getBody(BuildContext context) {
+    return ListView(
+        padding: const EdgeInsets.all(14),
+        children: [
+          BaseBloc<InventorySessionBloc, BaseBlocState,ProductsProgressState>(
+            builder: (ProductsProgressState state) {
+              return (state.counted>0 && (state.total??0)>0) ? ActiveSessionCard(counted: state.counted, total: state.total!) : const SizedBox();
+            },
+          ),
+          const SizedBox(height: 14),
+          const QuickActionsCard(),
+          const SizedBox(height: 14),
+          const PendingSyncCard(),
+        ],
+      );
   }
 }
 
 class ActiveSessionCard extends StatelessWidget {
-  const ActiveSessionCard({super.key});
+  final int counted;
+  final int total;
+  const ActiveSessionCard({super.key, required this.counted, required this.total});
 
   @override
   Widget build(BuildContext context) {
-    const int counted = 35;
-    const int total = 120;
-    const double progress = counted / total;
+
+    final double progress = counted / total;
 
     return AppCard(
       child: Column(
@@ -95,7 +128,7 @@ class ActiveSessionCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Row(
-            children: const [
+            children: [
               Text(
                 '$counted / $total products counted',
                 style: TextStyle(
@@ -106,7 +139,7 @@ class ActiveSessionCard extends StatelessWidget {
               ),
               Spacer(),
               Text(
-                '29%',
+                '${(progress * 100).toStringAsFixed(0)}%',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -209,7 +242,9 @@ class QuickActionsCard extends StatelessWidget {
                 child: ActionTile(
                   icon: Icons.add_circle_rounded,
                   title: 'Start New\nSession',
-                  onTap: () {},
+                  onTap: () {
+                    Routes.navigateToScreen(Routes.productsScreen,NavigationType.pushNamed,context);
+                  },
                 ),
               ),
               const SizedBox(width: 8),
@@ -220,14 +255,7 @@ class QuickActionsCard extends StatelessWidget {
                   onTap: () {},
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ActionTile(
-                  icon: Icons.sync_rounded,
-                  title: 'Sync Pending\nData',
-                  onTap: () {},
-                ),
-              ),
+
             ],
           ),
         ],

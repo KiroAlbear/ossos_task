@@ -7,6 +7,8 @@ import 'package:ossos_task/features/store_selection/presentation/blocs/store_sel
 import 'package:ossos_task/features/store_selection/presentation/pages/store_selection_page.dart';
 import 'package:ossos_task/features/test_feature/test_feature.dart';
 
+import '../../features/inventory_session/domain/use_cases/inventory_session_usecase.dart';
+import '../../features/inventory_session/presentation/blocs/inventory_session_bloc.dart';
 import '../../features/inventory_session/presentation/pages/inventory_session.dart';
 import '../../features/product_page/domain/use_cases/product_page_usecase.dart';
 import '../../features/product_page/presentation/blocs/product_page_bloc.dart';
@@ -37,10 +39,7 @@ class Routes {
         pageBuilder: (context, state) => _fadeTransitionScreenWrapper(
           context,
           state,
-          BlocProvider(
-            create: (_) => StoreSelectionBloc(getIt<StoreSelectionUseCase>()),
-            child: const StoreSelectionPage(),
-          ),
+          const StoreSelectionPage(),
         ),
       ),
 
@@ -51,10 +50,7 @@ class Routes {
         pageBuilder: (context, state) => _fadeTransitionScreenWrapper(
           context,
           state,
-          BlocProvider(
-            create: (_) => ProductPageBloc(getIt<ProductPageUseCase>()),
-            child: const ProductPage(),
-          ),
+          const ProductPage(),
         ),
       ),
 

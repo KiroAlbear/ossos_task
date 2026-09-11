@@ -17,3 +17,12 @@ class SubmitInventorySessionEvent extends InventorySessionEvent {
   @override
   List<Object> get props => [request];
 }
+
+class getProductsCountEvent extends InventorySessionEvent {
+  final String storeId;
+
+  const getProductsCountEvent(this.storeId);
+
+  @override
+  List<Object> get props => [storeId];
+}

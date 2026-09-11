@@ -10,6 +10,13 @@ class InventorySessionState extends SuccessState {
   InventorySessionState({required this.session});
 }
 
+class ProductsProgressState extends SuccessState {
+  final int counted;
+  final int? total;
+
+  ProductsProgressState({required this.counted, required this.total});
+}
+
 class InventorySessionConflictState extends ErrorState {
   final InventorySessionConflictModel conflict;
   final InventorySessionRequestModel request;

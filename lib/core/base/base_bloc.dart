@@ -27,7 +27,7 @@ class BaseBloc<
     this.buildWhen,
     this.listener,
     this.listenWhen,
-    this.loadingWidget = const CircularProgressIndicator(),
+    this.loadingWidget = const CircularProgressIndicator(color: Colors.blue,),
     this.emptyWidget = const SizedBox(),
     this.errorWidget = const SizedBox(),
     this.showLoadingOverlay = false,

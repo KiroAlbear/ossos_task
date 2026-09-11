@@ -6,6 +6,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lazy_load_scrollview/lazy_load_scrollview.dart';
 import 'package:ossos_task/imports.dart';
 
+import '../../../inventory_session/presentation/blocs/inventory_session_bloc.dart';
+import '../../../inventory_session/presentation/blocs/inventory_session_event.dart';
+
 /// Counts are saved per store. Supply callbacks to connect submission/scanning
 /// and image/status maps when these are available from the inventory service.
 class ProductPage extends BaseStatefulWidget {
@@ -52,6 +55,13 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
   String? _error;
   String? _storageError;
   void _refresh() => _uiVersion.value++;
+
+
+  @override
+  void onPopInvoked(bool didPop) {
+    BlocProvider.of<InventorySessionBloc>(context).add(getProductsCountEvent('cairo'));
+    super.onPopInvoked(didPop);
+  }
 
   @override
   void initState() {
