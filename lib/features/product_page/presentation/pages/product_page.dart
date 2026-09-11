@@ -208,70 +208,6 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
     }).toList();
   }
 
-  Future<void> _scan() async {
-    if (widget.onScan != null) {
-      try {
-        final barcode = await widget.onScan!();
-        if (!mounted || barcode == null) return;
-        setState(() => _search.text = barcode);
-        _fillViewport();
-      } catch (_) {
-        if (mounted) _message('Unable to scan the barcode. Please try again.');
-      }
-      return;
-    }
-    final controller = TextEditingController();
-    final barcode = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Find by barcode',
-          style: AppTextStyles.create(
-            context,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: AppTextStyles.create(context, fontSize: 16),
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: 'Barcode',
-            labelStyle: AppTextStyles.create(
-              context,
-              fontSize: 16,
-              color: _muted,
-            ),
-          ),
-          onSubmitted: (value) => Navigator.pop(context, value),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: AppTextStyles.create(context, fontSize: 14, color: _blue),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: Text(
-              'Find',
-              style: AppTextStyles.create(context, fontSize: 14, color: _blue),
-            ),
-          ),
-        ],
-      ),
-    );
-    // The dialog's exit animation may still reference its controller.
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    controller.dispose();
-    if (!mounted || barcode == null) return;
-    setState(() => _search.text = barcode);
-    _fillViewport();
-  }
 
   void _message(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -442,15 +378,6 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
       fillColor: const Color(0xFFF2F4F7),
       contentPadding: EdgeInsets.symmetric(vertical: 13),
       prefixIcon: Icon(Icons.search, color: const Color(0xFF526075), size: 25),
-      suffixIcon: IconButton(
-        tooltip: 'Find by barcode',
-        onPressed: _scan,
-        icon: Icon(
-          Icons.qr_code_scanner,
-          color: const Color(0xFF46536A),
-          size: 25,
-        ),
-      ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: const BorderSide(color: _border),
@@ -710,7 +637,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
           ),
           SizedBox(height: 12),
           Padding(
-            padding: EdgeInsets.only(left: 71),
+            padding: EdgeInsets.only(left: 5),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
