@@ -7,16 +7,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lazy_load_scrollview/lazy_load_scrollview.dart';
 import 'package:ossos_task/imports.dart';
 
-enum ProductCountStatus { savedLocally, pendingSync, conflict, synced }
-
-enum _CountFilter { all, counted, notCounted, conflicts }
-
 /// Counts are saved per store. Supply callbacks to connect submission/scanning
 /// and image/status maps when these are available from the inventory service.
 class ProductPage extends BaseStatefulWidget {
   final String storeName;
   final String storeId;
-  final ProductPageBloc? bloc;
+
   final Map<int, String> imageUrls;
   final Map<int, ProductCountStatus> statuses;
   final Future<void> Function(Map<int, int> counts)? onSubmit;
@@ -26,7 +22,6 @@ class ProductPage extends BaseStatefulWidget {
     super.key,
     this.storeName = 'Cairo Store',
     this.storeId = 'cairo',
-    this.bloc,
     this.imageUrls = const {},
     this.statuses = const {},
     this.onSubmit,
@@ -39,20 +34,17 @@ class ProductPage extends BaseStatefulWidget {
 
 class _ProductPageState extends BaseStatefullState<ProductPage> {
   static const _blue = Color(0xFF0074F5);
-  static const _ink = Color(0xFF101521);
   static const _muted = Color(0xFF728098);
   static const _border = Color(0xFFE6EAF0);
   static const _pageSize = 10;
-  late final ProductPageBloc _bloc;
+  // late final ProductPageBloc _bloc;
   final _scroll = ScrollController();
   final _search = TextEditingController();
-  final _products = <int, ProductModel>{};
   final _counts = <int, int>{};
   final _savedCounts = <int, int>{};
   final _editedIds = <int>{};
   final _controllers = <int, TextEditingController>{};
   Future<void> _saveQueue = Future<void>.value();
-  _CountFilter _filter = _CountFilter.all;
   int _page = 0;
   int? _total;
   bool _hasMore = true;
@@ -66,7 +58,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
   @override
   void initState() {
     super.initState();
-    _bloc = widget.bloc ?? getIt<ProductPageBloc>();
+    // _bloc = getIt<ProductPageBloc>();
     _restore();
     // Subscribe to the Bloc before the first request can finish.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -95,6 +87,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
     } finally {
       if (mounted) {
         setState(() => _restoring = false);
+        _updateCountFilters();
         _fillViewport();
       }
     }
@@ -106,22 +99,19 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
       _loading = true;
       _error = null;
     });
-    _bloc.add(LoadProductsEvent(page: _page + 1, limit: _pageSize));
+    BlocProvider.of<ProductPageBloc>(context).add(LoadProductsEvent(page: _page + 1, limit: _pageSize));
   }
 
   void _receive(BuildContext context, BaseBlocState state) {
     if (state is ProductPageState) {
       setState(() {
-        for (final product in state.products) {
-          _products[product.id] = product;
-        }
         _page = state.page;
         _hasMore = state.hasNextPage;
         _total =
             state.productPage.totalItems ??
-            (_hasMore ? null : _products.length);
-        _loading = false;
-        _error = null;
+            (_hasMore ? null : state.products.length);
+        _loading = state.isLoading;
+        _error = state.errorMessage;
       });
       _fillViewport();
     } else if (state is ErrorState) {
@@ -135,10 +125,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
   void _fillViewport() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _error != null || !_scroll.hasClients) return;
-      // Filtering is local, so fetch remaining pages to search the whole catalog.
-      if (_search.text.isNotEmpty ||
-          _filter != _CountFilter.all ||
-          _scroll.position.maxScrollExtent <= 0) {
+      if (_scroll.position.maxScrollExtent <= 0) {
         _loadMore();
       }
     });
@@ -154,6 +141,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
         _counts[id] = count;
       }
     });
+    _updateCountFilters();
     final snapshot = Map<int, int>.of(_counts);
     final key = _storageKey;
     // Serialize writes so an older edit cannot overwrite a newer count.
@@ -170,6 +158,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
             ..addAll(snapshot);
           _storageError = null;
         });
+        _updateCountFilters();
       } catch (_) {
         if (mounted) {
           setState(
@@ -191,23 +180,21 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
     return _editedIds.contains(id) ? null : widget.statuses[id];
   }
 
-  List<ProductModel> get _visible {
-    final query = _search.text.trim().toLowerCase();
-    return _products.values.where((p) {
-      final matches =
-          query.isEmpty ||
-          '${p.name} ${p.sku} ${p.barcode}'.toLowerCase().contains(query);
-      return matches &&
-          switch (_filter) {
-            _CountFilter.all => true,
-            _CountFilter.counted => _counts.containsKey(p.id),
-            _CountFilter.notCounted => !_counts.containsKey(p.id),
-            _CountFilter.conflicts =>
-              _status(p.id) == ProductCountStatus.conflict,
-          };
-    }).toList();
+  void _updateCountFilters() {
+    final ids = {...widget.statuses.keys, ..._counts.keys, ..._editedIds};
+    BlocProvider.of<ProductPageBloc>(context).add(
+      UpdateProductCountFiltersEvent(
+        countedIds: _counts.keys.toSet(),
+        statuses: {for (final id in ids) id: _status(id)},
+      ),
+    );
   }
 
+  @override
+  void didUpdateWidget(covariant ProductPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _updateCountFilters();
+  }
 
   void _message(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -287,13 +274,12 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
     for (final controller in _controllers.values) {
       controller.dispose();
     }
-    if (widget.bloc == null) unawaited(_bloc.close());
+
     super.dispose();
   }
 
-@override
+  @override
   String? appBarTitle() => 'Product Count';
-
 
   @override
   String? appBarSubtitle() => widget.storeName;
@@ -303,26 +289,48 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
 
   @override
   Widget getBody(BuildContext context) {
-    return BlocListener<ProductPageBloc, BaseBlocState>(
-      bloc: _bloc,
-      listener: _receive,
-      child: Column(
+    return BaseBloc<ProductPageBloc, BaseBlocState, ProductPageState>(
+        listener: _receive,
+        loadingWidget: const CircularProgressIndicator(color: _blue),
+        errorWidget: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _error ?? 'Unable to load products.',
+                style: AppTextStyles.create(
+                  context,
+                  fontSize: 14,
+                  color: _muted,
+                ),
+              ),
+              TextButton(
+                onPressed: _loadMore,
+                child: Text(
+                  'Retry',
+                  style: AppTextStyles.create(
+                    context,
+                    fontSize: 14,
+                    color: _blue,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        builder: (state) => Column(
           children: [
-            Column(
-              children: [
-                _offlineBanner(),
-                SizedBox(height: 9),
-                _searchField(),
-                SizedBox(height: 8),
-                _filters(),
-                SizedBox(height: 8),
-              ],
-            ),
-            Expanded(child: _list()),
+            _offlineBanner(),
+            const SizedBox(height: 9),
+            _searchField(),
+            const SizedBox(height: 8),
+            _filters(state),
+            const SizedBox(height: 8),
+            Expanded(child: _list(state)),
           ],
         ),
+      );
 
-    );
   }
 
   Widget _offlineBanner() => Container(
@@ -367,10 +375,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
   Widget _searchField() => TextField(
     controller: _search,
     style: AppTextStyles.create(context, fontSize: 13),
-    onChanged: (_) {
-      setState(() {});
-      _fillViewport();
-    },
+    onChanged: (query) => BlocProvider.of<ProductPageBloc>(context).add(SearchProductsEvent(query)),
     decoration: InputDecoration(
       hintText: 'Search by product name, SKU, barcode',
       hintStyle: AppTextStyles.create(context, fontSize: 12.5, color: _muted),
@@ -393,17 +398,12 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
     ),
   );
 
-  Widget _filters() {
-    final counted = _counts.length;
-    final total = _total;
-    final conflicts = _products.keys
-        .where((id) => _status(id) == ProductCountStatus.conflict)
-        .length;
+  Widget _filters(ProductPageState state) {
     final labels = [
-      'All (${total ?? _products.length})',
-      'Counted ($counted)',
-      'Not Counted (${total == null ? _products.keys.where((id) => !_counts.containsKey(id)).length : (total - counted).clamp(0, total)})',
-      'Conflicts ($conflicts)',
+      'All (${_total ?? state.products.length})',
+      'Counted (${state.countedCount})',
+      'Not Counted (${state.notCountedCount})',
+      'Conflicts (${state.conflictCount})',
     ];
     const icons = [
       null,
@@ -414,8 +414,8 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: List.generate(_CountFilter.values.length, (index) {
-          final selected = _filter == _CountFilter.values[index];
+        children: List.generate(ProductCountFilter.values.length, (index) {
+          final selected = state.filter == ProductCountFilter.values[index];
           return Padding(
             padding: EdgeInsets.only(right: 7),
             child: TextButton(
@@ -428,8 +428,9 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
                 ),
               ),
               onPressed: () {
-                setState(() => _filter = _CountFilter.values[index]);
-                _fillViewport();
+                BlocProvider.of<ProductPageBloc>(context).add(
+                  FilterProductsEvent(ProductCountFilter.values[index]),
+                );
               },
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -456,11 +457,11 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
     );
   }
 
-  Widget _list() {
-    if (_restoring || (_products.isEmpty && _loading)) {
+  Widget _list(ProductPageState state) {
+    if (_restoring || (state.products.isEmpty && _loading)) {
       return const Center(child: CircularProgressIndicator(color: _blue));
     }
-    final visible = _visible;
+    final visible = state.filteredProducts;
     return LazyLoadScrollView(
       isLoading: _loading || !_hasMore || _error != null,
       scrollOffset: 220,
