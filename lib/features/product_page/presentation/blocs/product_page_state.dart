@@ -14,6 +14,9 @@ class ProductPageState extends SuccessState {
   final int countedCount;
   final int notCountedCount;
   final int conflictCount;
+  final bool isRestoring;
+  final Map<int, int> restoredCounts;
+  final String? restoreError;
 
   ProductPageState({
     required this.productPage,
@@ -25,7 +28,11 @@ class ProductPageState extends SuccessState {
     this.countedCount = 0,
     this.notCountedCount = 0,
     this.conflictCount = 0,
-  }) : filteredProducts = List.unmodifiable(
+    this.isRestoring = true,
+    Map<int, int> restoredCounts = const {},
+    this.restoreError,
+  }) : restoredCounts = Map.unmodifiable(restoredCounts),
+       filteredProducts = List.unmodifiable(
          filteredProducts ?? productPage.data,
        );
 

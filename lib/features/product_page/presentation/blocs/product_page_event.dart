@@ -9,6 +9,15 @@ abstract class ProductPageEvent extends Equatable {
   List<Object> get props => [];
 }
 
+class RestoreProductCountsEvent extends ProductPageEvent {
+  final String storeId;
+
+  const RestoreProductCountsEvent(this.storeId);
+
+  @override
+  List<Object> get props => [storeId];
+}
+
 class SearchProductsEvent extends ProductPageEvent {
   final String query;
   const SearchProductsEvent(this.query);

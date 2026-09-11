@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -59,38 +58,14 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
   void initState() {
     super.initState();
     // _bloc = getIt<ProductPageBloc>();
-    _restore();
     // Subscribe to the Bloc before the first request can finish.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _loadMore();
-    });
-  }
-
-  Future<void> _restore() async {
-    try {
-      final raw = await SecureStorageManager.getInstance().getValue(
-        _storageKey,
-      );
       if (!mounted) return;
-      if (raw != null) {
-        final data = jsonDecode(raw) as Map<String, dynamic>;
-        for (final entry in data.entries) {
-          final id = int.tryParse(entry.key);
-          if (id != null && entry.value is int && (entry.value as int) >= 0) {
-            _counts[id] = entry.value as int;
-          }
-        }
-        _savedCounts.addAll(_counts);
-      }
-    } catch (_) {
-      if (mounted) _storageError = 'Could not restore locally saved counts.';
-    } finally {
-      if (mounted) {
-        setState(() => _restoring = false);
-        _updateCountFilters();
-        _fillViewport();
-      }
-    }
+      BlocProvider.of<ProductPageBloc>(context).add(
+        RestoreProductCountsEvent(widget.storeId),
+      );
+      _loadMore();
+    });
   }
 
   void _loadMore() {
@@ -104,7 +79,14 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
 
   void _receive(BuildContext context, BaseBlocState state) {
     if (state is ProductPageState) {
+      final didRestore = _restoring && !state.isRestoring;
       setState(() {
+        if (didRestore) {
+          _counts.addAll(state.restoredCounts);
+          _savedCounts.addAll(state.restoredCounts);
+          _storageError = state.restoreError;
+          _restoring = false;
+        }
         _page = state.page;
         _hasMore = state.hasNextPage;
         _total =
@@ -113,6 +95,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
         _loading = state.isLoading;
         _error = state.errorMessage;
       });
+      if (didRestore) _updateCountFilters();
       _fillViewport();
     } else if (state is ErrorState) {
       setState(() {
@@ -131,7 +114,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
     });
   }
 
-  void _changeCount(int id, String value) {
+  void _changeProductCount(int id, String value) {
     setState(() {
       _editedIds.add(id);
       final count = int.tryParse(value);
@@ -608,7 +591,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
                             ),
                             onSelected: (_) {
                               controller.clear();
-                              _changeCount(product.id, '');
+                              _changeProductCount(product.id, '');
                             },
                             itemBuilder: (_) => [
                               PopupMenuItem(
@@ -692,7 +675,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
                             FilteringTextInputFormatter.digitsOnly,
                             LengthLimitingTextInputFormatter(9),
                           ],
-                          onChanged: (value) => _changeCount(product.id, value),
+                          onChanged: (value) => _changeProductCount(product.id, value),
                           decoration: InputDecoration(
                             hintText: '—',
                             hintStyle: AppTextStyles.create(

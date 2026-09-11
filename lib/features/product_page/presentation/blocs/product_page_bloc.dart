@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ossos_task/imports.dart';
 
@@ -14,8 +16,12 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
   int _limit = 10;
   bool _loading = false;
   String? _error;
+  bool _restoring = true;
+  final _restoredCounts = <int, int>{};
+  String? _restoreError;
 
   ProductPageBloc(this._useCase) : super(InitialState()) {
+    on<RestoreProductCountsEvent>(_restoreCounts);
     on<LoadProductsEvent>(_loadProducts);
     on<SearchProductsEvent>((event, emit) {
       _query = event.query;
@@ -32,6 +38,38 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
       _statuses = event.statuses;
       _emitProducts(emit);
     });
+  }
+
+  Future<void> _restoreCounts(
+    RestoreProductCountsEvent event,
+    Emitter<BaseBlocState> emit,
+  ) async {
+    _restoring = true;
+    _restoreError = null;
+    _restoredCounts.clear();
+    _emitProducts(emit);
+    try {
+      final raw = await SecureStorageManager.getInstance().getValue(
+        'product_counts_${event.storeId}',
+      );
+      if (emit.isDone) return;
+      if (raw != null) {
+        final data = jsonDecode(raw) as Map<String, dynamic>;
+        for (final entry in data.entries) {
+          final id = int.tryParse(entry.key);
+          if (id != null && entry.value is int && (entry.value as int) >= 0) {
+            _restoredCounts[id] = entry.value as int;
+          }
+        }
+      }
+    } catch (_) {
+      _restoreError = 'Could not restore locally saved counts.';
+    } finally {
+      if (!emit.isDone) {
+        _restoring = false;
+        _emitProducts(emit);
+      }
+    }
   }
 
   void _loadRemainingForFilter() {
@@ -82,6 +120,9 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
         conflictCount: _products.keys
             .where((id) => _statuses[id] == ProductCountStatus.conflict)
             .length,
+        isRestoring: _restoring,
+        restoredCounts: _restoredCounts,
+        restoreError: _restoreError,
       ),
     );
   }
