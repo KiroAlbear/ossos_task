@@ -18,6 +18,21 @@ class RestoreProductCountsEvent extends ProductPageEvent {
   List<Object> get props => [storeId];
 }
 
+class ChangeProductCountEvent extends ProductPageEvent {
+  final String storeId;
+  final int productId;
+  final String value;
+
+  const ChangeProductCountEvent({
+    required this.storeId,
+    required this.productId,
+    required this.value,
+  });
+
+  @override
+  List<Object> get props => [storeId, productId, value];
+}
+
 class SearchProductsEvent extends ProductPageEvent {
   final String query;
   const SearchProductsEvent(this.query);

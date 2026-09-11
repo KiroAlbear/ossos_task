@@ -19,9 +19,14 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
   bool _restoring = true;
   final _restoredCounts = <int, int>{};
   String? _restoreError;
+  final _counts = <int, int>{};
+  final _savedCounts = <int, int>{};
+  Future<void> _saveQueue = Future<void>.value();
+  String? _storageError;
 
   ProductPageBloc(this._useCase) : super(InitialState()) {
     on<RestoreProductCountsEvent>(_restoreCounts);
+    on<ChangeProductCountEvent>(_changeProductCount);
     on<LoadProductsEvent>(_loadProducts);
     on<SearchProductsEvent>((event, emit) {
       _query = event.query;
@@ -39,6 +44,8 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
       _emitProducts(emit);
     });
   }
+
+  Future<void> flushSaves() => _saveQueue;
 
   Future<void> _restoreCounts(
     RestoreProductCountsEvent event,
@@ -62,6 +69,12 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
           }
         }
       }
+      _counts
+        ..clear()
+        ..addAll(_restoredCounts);
+      _savedCounts
+        ..clear()
+        ..addAll(_restoredCounts);
     } catch (_) {
       _restoreError = 'Could not restore locally saved counts.';
     } finally {
@@ -70,6 +83,37 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
         _emitProducts(emit);
       }
     }
+  }
+
+  Future<void> _changeProductCount(
+    ChangeProductCountEvent event,
+    Emitter<BaseBlocState> emit,
+  ) async {
+    final count = int.tryParse(event.value);
+    if (count == null) {
+      _counts.remove(event.productId);
+    } else {
+      _counts[event.productId] = count;
+    }
+    _storageError = null;
+    _emitProducts(emit);
+    final snapshot = Map<int, int>.of(_counts);
+    _saveQueue = _saveQueue.then((_) async {
+      try {
+        await SecureStorageManager.getInstance().setObject(
+          'product_counts_${event.storeId}',
+          snapshot.map((id, value) => MapEntry(id.toString(), value)),
+        );
+        _savedCounts
+          ..clear()
+          ..addAll(snapshot);
+        _storageError = null;
+      } catch (_) {
+        _storageError = 'Could not save changes locally. Please retry.';
+      }
+    });
+    await _saveQueue;
+    if (!emit.isDone) _emitProducts(emit);
   }
 
   void _loadRemainingForFilter() {
@@ -123,6 +167,9 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
         isRestoring: _restoring,
         restoredCounts: _restoredCounts,
         restoreError: _restoreError,
+        counts: _counts,
+        savedCounts: _savedCounts,
+        storageError: _storageError,
       ),
     );
   }

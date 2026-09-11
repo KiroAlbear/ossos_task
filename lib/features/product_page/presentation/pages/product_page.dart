@@ -36,14 +36,13 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
   static const _muted = Color(0xFF728098);
   static const _border = Color(0xFFE6EAF0);
   static const _pageSize = 10;
-  // late final ProductPageBloc _bloc;
   final _scroll = ScrollController();
   final _search = TextEditingController();
-  final _counts = <int, int>{};
-  final _savedCounts = <int, int>{};
+  final _productCountsMap = <int, int>{};
+  final _savedProductsCountsMap = <int, int>{};
   final _editedIds = <int>{};
+  final _uiVersion = ValueNotifier<int>(0);
   final _controllers = <int, TextEditingController>{};
-  Future<void> _saveQueue = Future<void>.value();
   int _page = 0;
   int? _total;
   bool _hasMore = true;
@@ -52,12 +51,12 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
   bool _submitting = false;
   String? _error;
   String? _storageError;
-  String get _storageKey => 'product_counts_${widget.storeId}';
+  void _refresh() => _uiVersion.value++;
 
   @override
   void initState() {
     super.initState();
-    // _bloc = getIt<ProductPageBloc>();
+
     // Subscribe to the Bloc before the first request can finish.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -70,38 +69,52 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
 
   void _loadMore() {
     if (_loading || !_hasMore) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    _loading = true;
+    _error = null;
+    _refresh();
     BlocProvider.of<ProductPageBloc>(context).add(LoadProductsEvent(page: _page + 1, limit: _pageSize));
   }
 
   void _receive(BuildContext context, BaseBlocState state) {
     if (state is ProductPageState) {
       final didRestore = _restoring && !state.isRestoring;
-      setState(() {
-        if (didRestore) {
-          _counts.addAll(state.restoredCounts);
-          _savedCounts.addAll(state.restoredCounts);
-          _storageError = state.restoreError;
-          _restoring = false;
-        }
-        _page = state.page;
-        _hasMore = state.hasNextPage;
-        _total =
-            state.productPage.totalItems ??
-            (_hasMore ? null : state.products.length);
-        _loading = state.isLoading;
-        _error = state.errorMessage;
-      });
-      if (didRestore) _updateCountFilters();
+      final previousCounts = Map<int, int>.of(_productCountsMap);
+      final previousSavedCounts = Map<int, int>.of(_savedProductsCountsMap);
+      if (didRestore) {
+        _productCountsMap
+          ..clear()
+          ..addAll(state.restoredProductsCountsMap);
+        _savedProductsCountsMap
+          ..clear()
+          ..addAll(state.restoredProductsCountsMap);
+        _storageError = state.restoreError;
+        _restoring = false;
+      }
+      _productCountsMap
+        ..clear()
+        ..addAll(state.productCountsMap);
+      _savedProductsCountsMap
+        ..clear()
+        ..addAll(state.savedProductsCountsMap);
+      _storageError = state.storageError ?? state.restoreError;
+      _page = state.page;
+      _hasMore = state.hasNextPage;
+      _total = state.productPage.totalItems ?? (_hasMore ? null : state.products.length);
+      _loading = state.isLoading;
+      _error = state.errorMessage;
+      _refresh();
+      final countsChanged = previousCounts.length != _productCountsMap.length ||
+          previousCounts.entries.any((entry) => _productCountsMap[entry.key] != entry.value);
+      final savedCountsChanged = previousSavedCounts.length != _savedProductsCountsMap.length ||
+          previousSavedCounts.entries.any((entry) => _savedProductsCountsMap[entry.key] != entry.value);
+      if (didRestore || countsChanged || savedCountsChanged) {
+        _updateCountFilters();
+      }
       _fillViewport();
     } else if (state is ErrorState) {
-      setState(() {
-        _loading = false;
-        _error = state.errorMessage ?? 'Unable to load products.';
-      });
+      _loading = false;
+      _error = state.errorMessage ?? 'Unable to load products.';
+      _refresh();
     }
   }
 
@@ -115,47 +128,19 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
   }
 
   void _changeProductCount(int id, String value) {
-    setState(() {
-      _editedIds.add(id);
-      final count = int.tryParse(value);
-      if (count == null) {
-        _counts.remove(id);
-      } else {
-        _counts[id] = count;
-      }
-    });
-    _updateCountFilters();
-    final snapshot = Map<int, int>.of(_counts);
-    final key = _storageKey;
-    // Serialize writes so an older edit cannot overwrite a newer count.
-    _saveQueue = _saveQueue.then((_) async {
-      try {
-        await SecureStorageManager.getInstance().setObject(
-          key,
-          snapshot.map((id, value) => MapEntry(id.toString(), value)),
-        );
-        if (!mounted) return;
-        setState(() {
-          _savedCounts
-            ..clear()
-            ..addAll(snapshot);
-          _storageError = null;
-        });
-        _updateCountFilters();
-      } catch (_) {
-        if (mounted) {
-          setState(
-            () =>
-                _storageError = 'Could not save changes locally. Please retry.',
-          );
-        }
-      }
-    });
+    _editedIds.add(id);
+    BlocProvider.of<ProductPageBloc>(context).add(
+      ChangeProductCountEvent(
+        storeId: widget.storeId,
+        productId: id,
+        value: value,
+      ),
+    );
   }
 
   ProductCountStatus? _status(int id) {
-    if (_counts.containsKey(id)) {
-      if (_savedCounts[id] != _counts[id]) return null;
+    if (_productCountsMap.containsKey(id)) {
+      if (_savedProductsCountsMap[id] != _productCountsMap[id]) return null;
       return _editedIds.contains(id)
           ? ProductCountStatus.savedLocally
           : widget.statuses[id] ?? ProductCountStatus.savedLocally;
@@ -164,10 +149,10 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
   }
 
   void _updateCountFilters() {
-    final ids = {...widget.statuses.keys, ..._counts.keys, ..._editedIds};
+    final ids = {...widget.statuses.keys, ..._productCountsMap.keys, ..._editedIds};
     BlocProvider.of<ProductPageBloc>(context).add(
       UpdateProductCountFiltersEvent(
-        countedIds: _counts.keys.toSet(),
+        countedIds: _productCountsMap.keys.toSet(),
         statuses: {for (final id in ids) id: _status(id)},
       ),
     );
@@ -197,9 +182,10 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
 
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
-    setState(() => _submitting = true);
+    _submitting = true;
+    _refresh();
     try {
-      await _saveQueue;
+      await BlocProvider.of<ProductPageBloc>(context).flushSaves();
       if (!mounted) return;
       if (_storageError != null) {
         _message(_storageError!);
@@ -218,7 +204,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
               ),
             ),
             content: Text(
-              '${_counts.length} product counts are saved on this device. Server submission is not connected yet.',
+              '${_productCountsMap.length} product counts are saved on this device. Server submission is not connected yet.',
               style: AppTextStyles.create(context, fontSize: 14),
               overflow: TextOverflow.visible,
             ),
@@ -238,7 +224,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
           ),
         );
       } else {
-        await widget.onSubmit!(Map<int, int>.unmodifiable(_counts));
+        await widget.onSubmit!(Map<int, int>.unmodifiable(_productCountsMap));
         if (mounted) _message('Count submitted.');
       }
     } catch (_) {
@@ -246,7 +232,10 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
         _message('Unable to submit. Your local counts are retained.');
       }
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      if (mounted) {
+        _submitting = false;
+        _refresh();
+      }
     }
   }
 
@@ -258,6 +247,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
       controller.dispose();
     }
 
+    _uiVersion.dispose();
     super.dispose();
   }
 
@@ -327,7 +317,9 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
         Icon(Icons.cloud_off_outlined, color: _blue, size: 21),
         SizedBox(width: 12),
         Expanded(
-          child: Text(
+          child: ValueListenableBuilder<int>(
+            valueListenable: _uiVersion,
+            builder: (_, __, ___) => Text(
             _storageError ?? 'Offline mode — changes are saved locally',
             style: AppTextStyles.create(
               context,
@@ -336,6 +328,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
                   ? const Color(0xFF005BCD)
                   : Colors.red,
               fontWeight: FontWeight.w600,
+            ),
             ),
           ),
         ),
@@ -515,9 +508,9 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
   Widget _card(ProductModel product) {
     final controller = _controllers.putIfAbsent(
       product.id,
-      () => TextEditingController(text: _counts[product.id]?.toString() ?? ''),
+      () => TextEditingController(text: _productCountsMap[product.id]?.toString() ?? ''),
     );
-    final count = _counts[product.id];
+    final count = _productCountsMap[product.id];
     final difference = count == null ? null : count - product.systemQuantity;
     final imageUrl = widget.imageUrls[product.id];
     final thumbnail = Icon(Icons.inventory_2_outlined, color: _muted, size: 32);
@@ -808,7 +801,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
         Icons.check_circle,
       ),
       null => (
-        _counts.containsKey(id)
+        _productCountsMap.containsKey(id)
             ? (_storageError == null ? 'Saving…' : 'Not saved')
             : 'Not counted',
         _muted,
@@ -842,10 +835,6 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
   }
 
   Widget _footer() {
-    final total = _total;
-    final progress = total == null || total == 0
-        ? 0.0
-        : (_counts.length / total).clamp(0.0, 1.0);
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -870,11 +859,13 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text.rich(
-                    TextSpan(
+                  ValueListenableBuilder<int>(
+                    valueListenable: _uiVersion,
+                    builder: (_, __, ___) => Text.rich(
+                      TextSpan(
                       children: [
                         TextSpan(
-                          text: '${_counts.length} / ${total ?? '…'} ',
+                          text: '${_productCountsMap.length} / ${_total ?? '…'} ',
                           style: AppTextStyles.create(
                             context,
                             fontSize: 16,
@@ -886,26 +877,34 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
                           style: AppTextStyles.create(context, fontSize: 10.5),
                         ),
                       ],
+                      ),
                     ),
                   ),
                   SizedBox(height: 7),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 7,
-                      color: _blue,
-                      backgroundColor: const Color(0xFFE1E6EE),
+                  ValueListenableBuilder<int>(
+                    valueListenable: _uiVersion,
+                    builder: (_, __, ___) => ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: LinearProgressIndicator(
+                        value: _total == null || _total == 0
+                            ? 0.0
+                            : (_productCountsMap.length / _total!).clamp(0.0, 1.0),
+                        minHeight: 7,
+                        color: _blue,
+                        backgroundColor: const Color(0xFFE1E6EE),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
             SizedBox(width: 16),
-            ElevatedButton.icon(
-              onPressed: _counts.isEmpty || _restoring || _submitting
-                  ? null
-                  : _submit,
+            ValueListenableBuilder<int>(
+              valueListenable: _uiVersion,
+              builder: (_, __, ___) => ElevatedButton.icon(
+                onPressed: _productCountsMap.isEmpty || _restoring || _submitting
+                    ? null
+                    : _submit,
               style: ElevatedButton.styleFrom(
                 backgroundColor: _blue,
                 foregroundColor: Colors.white,
@@ -933,6 +932,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
                 ),
+              ),
               ),
             ),
           ],
