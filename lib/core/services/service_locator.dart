@@ -1,14 +1,25 @@
 import 'package:get_it/get_it.dart';
 import 'package:ossos_task/core/services/urls.dart';
+import 'package:ossos_task/features/product_page/product_page.dart';
 import 'package:ossos_task/features/store_selection/store_selection.dart';
 import 'package:ossos_task/features/test_feature/test_feature.dart';
 
 final GetIt getIt = GetIt.instance;
 
 class ServiceLocator {
-  void init()  {
+  void init() {
+    getIt.registerLazySingleton<ProductPageRemoteDataSource>(
+      () => ProductPageRemoteDataSourceImpl(),
+    );
+    getIt.registerLazySingleton<ProductPageRepository>(
+      () => ProductPageRepositoryImp(getIt()),
+    );
+    getIt.registerLazySingleton<ProductPageUseCase>(
+      () => ProductPageUseCase(getIt()),
+    );
+    getIt.registerFactory<ProductPageBloc>(() => ProductPageBloc(getIt()));
     getIt.registerLazySingleton<StoreSelectionRemoteDataSource>(
-      () => StoreSelectionRemoteDataSourceImpl(endpoint: Urls.getStores),
+      () => StoreSelectionRemoteDataSourceImpl(),
     );
     getIt.registerLazySingleton<StoreSelectionRepository>(
       () => StoreSelectionRepositoryImp(getIt()),

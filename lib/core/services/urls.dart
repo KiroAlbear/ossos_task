@@ -9,7 +9,10 @@ class Urls {
   static const String getLocalizationStrings = "";
 
   // TODO: Replace with the real store-list endpoint.
-  static const String getStores = 'https://example.com/stores';
+  static const String getStores = "https://mocki.io/v1/879eac91-5d8f-4ef2-b746-3daa509bf21e";
+
+  // TODO: Replace with the real products endpoint.
+  static const String getProducts = 'dummyurl';
 
   static String get getRegions {
     return "$baseUrl/api/mobile/regions";
