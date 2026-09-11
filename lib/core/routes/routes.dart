@@ -7,6 +7,7 @@ import 'package:ossos_task/features/store_selection/presentation/blocs/store_sel
 import 'package:ossos_task/features/store_selection/presentation/pages/store_selection_page.dart';
 import 'package:ossos_task/features/test_feature/test_feature.dart';
 
+import '../../features/inventory_session/presentation/pages/inventory_session.dart';
 import '../../features/product_page/domain/use_cases/product_page_usecase.dart';
 import '../../features/product_page/presentation/blocs/product_page_bloc.dart';
 import '../../features/product_page/presentation/pages/product_page.dart';
@@ -21,9 +22,10 @@ class Routes {
   // static const String testFeatureScreen = '/testFeatureScreen';
   static const String storeSelectionScreen = '/storeSelectionScreen';
   static const String productsScreen = '/productsScreen';
+  static const String inventorySessionScreen = '/inventorySessionScreen';
 
   static final GoRouter goRouter = GoRouter(
-    initialLocation: productsScreen,
+    initialLocation: inventorySessionScreen,
     navigatorKey: rootNavigatorKey,
     debugLogDiagnostics: false,
     routes: <RouteBase>[
@@ -53,6 +55,17 @@ class Routes {
             create: (_) => ProductPageBloc(getIt<ProductPageUseCase>()),
             child: const ProductPage(),
           ),
+        ),
+      ),
+
+      GoRoute(
+        path: inventorySessionScreen,
+        name: inventorySessionScreen,
+        parentNavigatorKey: rootNavigatorKey,
+        pageBuilder: (context, state) => _fadeTransitionScreenWrapper(
+          context,
+          state,
+          const InventorySessionPage(),
         ),
       ),
 
