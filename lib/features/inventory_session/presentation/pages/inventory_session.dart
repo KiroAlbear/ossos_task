@@ -178,7 +178,7 @@ class ActiveSessionCard extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(
+              total != counted?Expanded(
                 child: FilledButton.icon(
                   onPressed: () {},
                   icon: const Icon(Icons.play_arrow_rounded),
@@ -192,9 +192,7 @@ class ActiveSessionCard extends StatelessWidget {
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
+              ):Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () {},
                   icon: const Icon(Icons.send_rounded),
