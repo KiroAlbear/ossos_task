@@ -70,9 +70,14 @@ class _InventorySessionPageState
                 !state.hasSubmittedProducts) {
               return const SizedBox.shrink();
             }
-            return const Padding(
-              padding: EdgeInsets.only(top: 14),
-              child: PendingSyncCard(),
+            return Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: PendingSyncCard(
+                isBusy:
+                    state.isDeletingSubmittedProducts ||
+                    state.isLoadingSubmittedProducts,
+                errorMessage: state.submittedProductsError,
+              ),
             );
           },
         ),
@@ -275,14 +280,6 @@ class QuickActionsCard extends StatelessWidget {
                   },
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ActionTile(
-                  icon: Icons.assignment_rounded,
-                  title: 'Submitted\nSessions',
-                  onTap: () {},
-                ),
-              ),
             ],
           ),
         ],
@@ -292,7 +289,10 @@ class QuickActionsCard extends StatelessWidget {
 }
 
 class PendingSyncCard extends StatelessWidget {
-  const PendingSyncCard({super.key});
+  final bool isBusy;
+  final String? errorMessage;
+
+  const PendingSyncCard({super.key, this.isBusy = false, this.errorMessage});
 
   @override
   Widget build(BuildContext context) {
@@ -345,9 +345,13 @@ class PendingSyncCard extends StatelessWidget {
                 ),
               ),
               FilledButton.icon(
-                onPressed: () {},
+                onPressed: isBusy
+                    ? null
+                    : () => context.read<InventorySessionBloc>().add(
+                        const DeleteSubmittedProductsEvent(),
+                      ),
                 icon: const Icon(Icons.sync_rounded, size: 18),
-                label: const Text('Sync Now'),
+                label: Text(isBusy ? 'Please wait...' : 'Sync Now'),
                 style: FilledButton.styleFrom(
                   backgroundColor: InventorySessionPage.primaryBlue,
                   foregroundColor: Colors.white,
@@ -362,6 +366,13 @@ class PendingSyncCard extends StatelessWidget {
               ),
             ],
           ),
+          if (errorMessage != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              errorMessage!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
         ],
       ),
     );

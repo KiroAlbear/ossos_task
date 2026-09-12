@@ -5,7 +5,6 @@ import 'package:ossos_task/core/routes/navigation_type.dart';
 import 'package:ossos_task/features/store_selection/domain/use_cases/store_selection_usecase.dart';
 import 'package:ossos_task/features/store_selection/presentation/blocs/store_selection_bloc.dart';
 import 'package:ossos_task/features/store_selection/presentation/pages/store_selection_page.dart';
-import 'package:ossos_task/features/test_feature/test_feature.dart';
 
 import '../../features/inventory_session/presentation/blocs/inventory_session_bloc.dart';
 import '../../features/inventory_session/presentation/pages/inventory_session.dart';

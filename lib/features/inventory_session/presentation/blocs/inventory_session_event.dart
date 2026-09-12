@@ -17,3 +17,7 @@ class getProductsCountEvent extends InventorySessionEvent {
 class GetSubmittedProductsEvent extends InventorySessionEvent {
   const GetSubmittedProductsEvent();
 }
+
+class DeleteSubmittedProductsEvent extends InventorySessionEvent {
+  const DeleteSubmittedProductsEvent();
+}

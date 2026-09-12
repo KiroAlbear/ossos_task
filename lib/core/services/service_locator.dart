@@ -3,7 +3,6 @@ import 'package:ossos_task/core/services/urls.dart';
 import 'package:ossos_task/features/inventory_session/inventory_session.dart';
 import 'package:ossos_task/features/product_page/product_page.dart';
 import 'package:ossos_task/features/store_selection/store_selection.dart';
-import 'package:ossos_task/features/test_feature/test_feature.dart';
 
 final GetIt getIt = GetIt.instance;
 
@@ -42,18 +41,5 @@ class ServiceLocator {
     getIt.registerLazySingleton<StoreSelectionUseCase>(
       () => StoreSelectionUseCase(getIt()),
     );
-    // getIt.registerFactory<StoreSelectionBloc>(
-    //   () => StoreSelectionBloc(getIt()),
-    // );
-    getIt.registerLazySingleton<TestFeatureRemoteDataSource>(
-      TestFeatureRemoteDataSourceImpl.new,
-    );
-    getIt.registerLazySingleton<TestFeatureRepository>(
-      () => TestFeatureRepositoryImp(getIt()),
-    );
-    getIt.registerLazySingleton<TestFeatureUseCase>(
-      () => TestFeatureUseCase(getIt()),
-    );
-    getIt.registerFactory<TestFeatureBloc>(TestFeatureBloc.new);
   }
 }

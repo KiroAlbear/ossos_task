@@ -7,6 +7,7 @@ class ProductsProgressState extends SuccessState {
   final int? total;
   final List<InventorySessionItemModel> submittedProducts;
   final bool isLoadingSubmittedProducts;
+  final bool isDeletingSubmittedProducts;
   final String? submittedProductsError;
   final bool isLoadingProgress;
   final String? progressError;
@@ -18,6 +19,7 @@ class ProductsProgressState extends SuccessState {
     required this.total,
     List<InventorySessionItemModel> submittedProducts = const [],
     this.isLoadingSubmittedProducts = false,
+    this.isDeletingSubmittedProducts = false,
     this.submittedProductsError,
     this.isLoadingProgress = false,
     this.progressError,

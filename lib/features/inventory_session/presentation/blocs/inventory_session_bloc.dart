@@ -13,6 +13,8 @@ class InventorySessionBloc extends Bloc<InventorySessionEvent, BaseBlocState> {
   int? _total;
   List<InventorySessionItemModel> _submittedProducts = [];
   bool _isLoadingSubmittedProducts = false;
+  bool _isDeletingSubmittedProducts = false;
+  int _submittedProductsRevision = 0;
   String? _submittedProductsError;
   bool _isLoadingProgress = false;
   String? _progressError;
@@ -20,6 +22,7 @@ class InventorySessionBloc extends Bloc<InventorySessionEvent, BaseBlocState> {
   InventorySessionBloc() : super(InitialState()) {
     on<getProductsCountEvent>(_getProductsCountProgress);
     on<GetSubmittedProductsEvent>(_getSubmittedProducts);
+    on<DeleteSubmittedProductsEvent>(_deleteSubmittedProducts);
   }
 
   void _emitState(Emitter<BaseBlocState> emit) {
@@ -30,6 +33,7 @@ class InventorySessionBloc extends Bloc<InventorySessionEvent, BaseBlocState> {
         total: _total,
         submittedProducts: _submittedProducts,
         isLoadingSubmittedProducts: _isLoadingSubmittedProducts,
+        isDeletingSubmittedProducts: _isDeletingSubmittedProducts,
         submittedProductsError: _submittedProductsError,
         isLoadingProgress: _isLoadingProgress,
         progressError: _progressError,
@@ -41,16 +45,41 @@ class InventorySessionBloc extends Bloc<InventorySessionEvent, BaseBlocState> {
     GetSubmittedProductsEvent event,
     Emitter<BaseBlocState> emit,
   ) async {
-    if (_isLoadingSubmittedProducts) return;
+    if (_isLoadingSubmittedProducts || _isDeletingSubmittedProducts) return;
+    final revision = _submittedProductsRevision;
     _isLoadingSubmittedProducts = true;
     _submittedProductsError = null;
     _emitState(emit);
     try {
-      _submittedProducts = await ProductUtils().getSubmittedProducts();
+      final products = await ProductUtils().getSubmittedProducts();
+      if (revision == _submittedProductsRevision) _submittedProducts = products;
     } catch (_) {
-      _submittedProductsError = 'Could not load locally submitted products.';
+      if (revision == _submittedProductsRevision) {
+        _submittedProductsError = 'Could not load locally submitted products.';
+      }
     } finally {
       _isLoadingSubmittedProducts = false;
+      _emitState(emit);
+    }
+  }
+
+  Future<void> _deleteSubmittedProducts(
+    DeleteSubmittedProductsEvent event,
+    Emitter<BaseBlocState> emit,
+  ) async {
+    if (_isDeletingSubmittedProducts) return;
+    _isDeletingSubmittedProducts = true;
+    _submittedProductsRevision++;
+    _submittedProductsError = null;
+    _emitState(emit);
+    try {
+      await ProductUtils().deleteSubmittedProducts();
+      _submittedProducts = [];
+    } catch (_) {
+      _submittedProductsError =
+          'Could not delete submitted products. Please retry.';
+    } finally {
+      _isDeletingSubmittedProducts = false;
       _emitState(emit);
     }
   }

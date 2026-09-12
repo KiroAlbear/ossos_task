@@ -30,6 +30,12 @@ class InventorySessionRemoteDataSourceImpl
     InventorySessionRequestModel request,
   ) async {
 
+    return await apiCallWrapper<InventorySessionModel>(() {
+      return fetchData<InventorySessionModel>(
+        "https://mocki.io/v1/b56613e6-fb71-4813-a449-c75e6cf27b8b",
+        mapDataConverter: InventorySessionModel.fromJson,
+      );
+    });
     return Future.value(
       right(InventorySessionModel(sessionId: 123))
     );
