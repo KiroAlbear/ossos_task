@@ -31,69 +31,35 @@ class InventorySessionRemoteDataSourceImpl
   Future<Either<Failure, InventorySessionModel>> submitInventorySession(
     InventorySessionRequestModel request,
   ) async {
-    // Use the shared transport directly: postData discards non-200 payloads,
-    // including the version/quantity details returned with HTTP 409.
-    try {
-      final response = await ApiService.getInstance().post(
-        endpoint,
-        body: request.toJson(),
-        authorizedApi: authorizedApi,
-      );
-      return _parseResponse(response);
-    } on DioException catch (error) {
-      if (error.response != null) {
-        return _parseResponse(error.response!);
-      }
-      switch (error.type) {
-        case DioExceptionType.connectionError:
-        case DioExceptionType.connectionTimeout:
-        case DioExceptionType.sendTimeout:
-        case DioExceptionType.receiveTimeout:
-          return const Left(
-            NoConnectionFailure('Unable to reach the server. Please retry.'),
-          );
-        default:
-          return const Left(
-            ServerFailure('Unable to submit the inventory session.'),
-          );
-      }
-    }
+
+    return Future.value(
+      left(
+        InventorySessionConflictFailure(
+          InventorySessionConflictModel(
+            conflicts: const [
+              InventorySessionConflictItemModel(
+                productId: 1,
+                expectedVersion: 2,
+                currentVersion: 3,
+                originalSystemQuantity: 50,
+                currentSystemQuantity: 45,
+                countedQuantity: 48,
+              ),
+              InventorySessionConflictItemModel(
+                productId: 2,
+                expectedVersion: 4,
+                currentVersion: 5,
+                originalSystemQuantity: 30,
+                currentSystemQuantity: 35,
+                countedQuantity: 32,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
   }
 
-  Either<Failure, InventorySessionModel> _parseResponse(
-    Response<dynamic> response,
-  ) {
-    final code = response.statusCode ?? 0;
-    if (code != 409 && (code < 200 || code >= 300)) {
-      return Left(
-        ServerFailure('Inventory session submission failed (HTTP $code).'),
-      );
-    }
-    try {
-      final data = response.data;
-      final json =
-          (data is String ? jsonDecode(data) : data) as Map<String, dynamic>;
-      if (json['status'] == 'conflict') {
-        return Left(
-          InventorySessionConflictFailure(
-            InventorySessionConflictModel.fromJson(json),
-          ),
-        );
-      }
-      if (code == 409) {
-        return const Left(
-          DataParsingFailure('Invalid inventory session conflict response.'),
-        );
-      }
-      return Right(InventorySessionModel.fromJson(json));
-    } on FormatException {
-      return const Left(
-        DataParsingFailure('Invalid inventory session response.'),
-      );
-    } on TypeError {
-      return const Left(
-        DataParsingFailure('Invalid inventory session response.'),
-      );
-    }
-  }
+
 }

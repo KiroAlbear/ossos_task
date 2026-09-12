@@ -53,6 +53,7 @@ class _InventorySessionPageState extends BaseStatefullState<InventorySessionPage
         padding: const EdgeInsets.all(14),
         children: [
           BaseBloc<InventorySessionBloc, BaseBlocState,ProductsProgressState>(
+            showErrorToast: false,
             builder: (ProductsProgressState state) {
               return (state.counted>0 && (state.total??0)>0) ? ActiveSessionCard(counted: state.counted, total: state.total!) : const SizedBox();
             },
@@ -247,27 +248,64 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
               ),
             counted == total? Gap(10):Gap(0),
              counted == total? Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _submitting ? null : _submit,
-                  icon: _submitting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.send_rounded),
-                  label: Text(_submitting ? 'Submitting...' : 'Submit Count'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: InventorySessionPage.primaryBlue,
-                    side: const BorderSide(
-                      color: InventorySessionPage.primaryBlue,
-                      width: 1.4,
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(9),
-                    ),
-                  ),
+                child: BaseBloc<InventorySessionBloc,BaseBlocState, SuccessState>(
+
+                  showErrorToast: false,
+                  listener: (p0, p1) {
+                    if(p1 is InventorySessionState){
+                      AppUtils.showAppToast(context: context, message: "Success");
+                    }
+                    if(p1 is ErrorState){
+                      AppUtils.showAppToast(context: context, message: p1.errorMessage??"");
+                    }
+                  },
+                  builder: (state) {
+                    return OutlinedButton.icon(
+                      onPressed: (){
+                        _submitting ? null : _submit;
+                        BlocProvider.of<InventorySessionBloc>(context).add(
+                          SubmitInventorySessionEvent(
+                            InventorySessionRequestModel(
+                              clientSessionId: 'dummy-session-001',
+                              storeId: 1,
+                              createdAt: DateTime.utc(2026, 9, 12, 10),
+                              items: const [
+                                InventorySessionItemModel(
+                                  productId: 1,
+                                  countedQuantity: 48,
+                                  expectedVersion: 2,
+                                ),
+                                InventorySessionItemModel(
+                                  productId: 2,
+                                  countedQuantity: 32,
+                                  expectedVersion: 4,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      icon: _submitting
+                          ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                          : const Icon(Icons.send_rounded),
+                      label: Text(_submitting ? 'Submitting...' : 'Submit Count'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: InventorySessionPage.primaryBlue,
+                        side: const BorderSide(
+                          color: InventorySessionPage.primaryBlue,
+                          width: 1.4,
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ):SizedBox(),
             ],

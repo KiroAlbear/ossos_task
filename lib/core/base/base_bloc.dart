@@ -20,6 +20,7 @@ class BaseBloc<
   final Widget errorWidget;
   final bool showLoadingOverlay;
   final bool horizontalPadding;
+  final bool showErrorToast;
 
   const BaseBloc({
     super.key,
@@ -32,6 +33,7 @@ class BaseBloc<
     this.errorWidget = const SizedBox(),
     this.showLoadingOverlay = false,
     this.horizontalPadding = false,
+    this.showErrorToast = true
   });
 
   @override
@@ -91,7 +93,6 @@ class _BaseBlocState<
       return const Center(child: Icon(Icons.error));
     } else if (state is ErrorState) {
       if (_lastSuccessState != null) {
-        _showErrorToast(context, state.errorMessage);
         return _buildSuccessWidget(_lastSuccessState!);
       }
 
@@ -115,8 +116,18 @@ class _BaseBlocState<
           return widget.buildWhen!(previous, current);
         }
       },
-      listenWhen: widget.listenWhen,
+      listenWhen: (previous, current) {
+        if (widget.listenWhen == null) {
+          return previous != current;
+        } else {
+          return widget.listenWhen!(previous, current);
+        }
+      },
       listener: (BuildContext context, S state) {
+        if(state is ErrorState && state.errorMessage != null && widget.showErrorToast ){
+          _showErrorToast(context, state.errorMessage);
+        }
+
         widget.listener?.call(context, state);
       },
       builder: (BuildContext context, S state) {

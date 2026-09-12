@@ -47,7 +47,9 @@ class InventorySessionBloc extends Bloc<InventorySessionEvent, BaseBlocState> {
         } else {
           emit(ErrorState(errorMessage: failure.message));
         }
-      }, (session) => emit(InventorySessionState(session: session)));
+      }, (session) {
+        emit(InventorySessionState(session: session));
+      });
     } catch (_) {
       if (!emit.isDone) {
         emit(
