@@ -13,7 +13,6 @@ import '../widgets/product_conflicts_sheet.dart';
 /// Counts are saved per store. Supply callbacks to connect submission/scanning
 /// and image/status maps when these are available from the inventory service.
 class ProductPage extends BaseStatefulWidget {
-  final String storeName;
   final String storeId;
 
   final Map<int, String> imageUrls;
@@ -23,8 +22,7 @@ class ProductPage extends BaseStatefulWidget {
 
   const ProductPage({
     super.key,
-    this.storeName = 'Cairo Store',
-    this.storeId = 'cairo',
+    required this.storeId,
     this.imageUrls = const {},
     this.statuses = const {},
     this.onSubmit,
@@ -282,7 +280,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
   String? appBarTitle() => 'Product Count';
 
   @override
-  String? appBarSubtitle() => widget.storeName;
+  String? appBarSubtitle() => widget.storeId;
 
   @override
   Widget? customBottomNavBar() => _footer();
@@ -364,7 +362,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
             tooltip: 'About offline counts',
             icon: Icon(Icons.info_outline, color: _blue, size: 18),
             onPressed: () => _message(
-              'Counts are stored on this device for ${widget.storeName}.',
+              'Counts are stored on this device for ${widget.storeId}.',
             ),
           ),
         ),

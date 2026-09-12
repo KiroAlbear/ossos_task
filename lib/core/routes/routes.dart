@@ -45,11 +45,10 @@ class Routes {
         path: productsScreen,
         name: productsScreen,
         parentNavigatorKey: rootNavigatorKey,
-        pageBuilder: (context, state) => _fadeTransitionScreenWrapper(
-          context,
-          state,
-          const ProductPage(),
-        ),
+        pageBuilder: (context, state) {
+          final name = state.extra as String?;
+          return _fadeTransitionScreenWrapper(context, state, ProductPage(storeId: name ?? 'Cairo Store',));
+        }
       ),
 
       GoRoute(

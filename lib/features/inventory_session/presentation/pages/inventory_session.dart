@@ -42,6 +42,7 @@ class _InventorySessionPageState
       if (!mounted) return;
       BlocProvider.of<InventorySessionBloc>(context)
           .add(getProductsCountEvent());
+
     });
 
     super.initState();
@@ -214,11 +215,12 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: () {
+                  onPressed: () async {
                     Routes.navigateToScreen(
                       Routes.productsScreen,
                       NavigationType.pushNamed,
                       context,
+                      arguments: await ProductUtils().getStoreId()
                     );
                   },
                   icon: const Icon(Icons.play_arrow_rounded),
@@ -271,6 +273,7 @@ class QuickActionsCard extends StatelessWidget {
                         Routes.productsScreen,
                         NavigationType.pushNamed,
                         context,
+                        arguments: await ProductUtils().getStoreId()
                       );
                     } else {
                       AppUtils.showAppToast(

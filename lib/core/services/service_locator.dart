@@ -41,5 +41,8 @@ class ServiceLocator {
     getIt.registerLazySingleton<StoreSelectionUseCase>(
       () => StoreSelectionUseCase(getIt()),
     );
+    getIt.registerFactory<StoreSelectionBloc>(
+      () => StoreSelectionBloc(getIt()),
+    );
   }
 }

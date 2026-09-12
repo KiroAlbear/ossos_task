@@ -1,15 +1,20 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ossos_task/core/utils/product_utils.dart';
 import 'package:ossos_task/imports.dart';
+import 'package:ossos_task/features/inventory_session/inventory_session.dart';
+import 'package:ossos_task/features/inventory_session/presentation/pages/inventory_session.dart';
 import 'package:ossos_task/features/product_page/presentation/widgets/product_conflicts_sheet.dart';
 
-class _ProductsRepository implements ProductPageRepository {
+class _ProductsRepository
+    implements ProductPageRepository, ProductPageRemoteDataSource {
   @override
   Future<Either<Failure, ProductPageModel>> fetchProducts({
     required int page,
@@ -64,6 +69,46 @@ void main() {
     );
   });
   tearDown(() => bloc.close());
+
+  for (final pageName in ['product page', 'inventory session']) {
+    testWidgets('$pageName app bar displays the selected store name', (
+      tester,
+    ) async {
+      const storeName = 'Alexandria Store';
+      await ProductUtils().saveStoreId(storeName);
+      getIt.registerSingleton<ProductPageRemoteDataSource>(_ProductsRepository());
+      addTearDown(() => getIt.unregister<ProductPageRemoteDataSource>());
+      final inventoryBloc = InventorySessionBloc();
+      addTearDown(inventoryBloc.close);
+
+      await tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<ProductPageBloc>.value(value: bloc),
+            BlocProvider<InventorySessionBloc>.value(value: inventoryBloc),
+          ],
+          child: MaterialApp(
+            home: pageName == 'product page'
+                ? const ProductPage(storeId: storeName)
+                : const InventorySessionPage(appBarTitle: storeName),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final appBar = find.byType(AppBar);
+      expect(appBar, findsOneWidget);
+      expect(
+        find.descendant(of: appBar, matching: find.text(storeName)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: appBar, matching: find.text('Product Count')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   test(
     'saveSubmittedProducts persists all item fields for the selected store',
@@ -231,6 +276,45 @@ void main() {
     expect(request.items.single.expectedVersion, 5);
     expect(await ProductUtils().getProductsSharedPrefrences(), isEmpty);
     expect(await ProductUtils().getSubmittedProducts(), isEmpty);
+  });
+
+  test('products are saved before submission and remain stored after a network failure', () async {
+    await restoreAndLoad();
+    const storage = FlutterSecureStorage();
+    expect(await storage.read(key: 'submitted_product_counts_1'), isNull);
+    String? savedBeforeFailure;
+    submission.respond = () async {
+      savedBeforeFailure = await storage.read(
+        key: 'submitted_product_counts_1',
+      );
+      throw const SocketException('Network is unreachable');
+    };
+
+    final result = await submit();
+
+    expect(result, isA<ProductSubmissionErrorState>());
+    expect(submission.requests, hasLength(1));
+    final expectedItems = [
+      {
+        'productId': 101,
+        'name': 'Scanner',
+        'countedQuantity': 18,
+        'expectedVersion': 5,
+      },
+    ];
+    expect(savedBeforeFailure, isNotNull);
+    expect(jsonDecode(savedBeforeFailure!), expectedItems);
+    expect(
+      await storage.read(key: 'submitted_product_counts_1'),
+      savedBeforeFailure,
+    );
+    expect(
+      (await ProductUtils().getSubmittedProducts())
+          .map((item) => item.toJson())
+          .toList(),
+      expectedItems,
+    );
+    expect(await ProductUtils().getProductsSharedPrefrences(), {101: 18});
   });
 
   test('failed submission retains counts and permits retry', () async {

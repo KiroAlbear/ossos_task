@@ -94,8 +94,8 @@ class _StoreSelectionPageState extends BaseStatefullState<StoreSelectionPage> {
                   child: ElevatedButton(
                     onPressed: state.selectedStore == null
                         ? null
-                        : () {
-                        ProductUtils().saveStoreId(state.selectedStore!.name.toString());
+                        : () async {
+                        await ProductUtils().saveStoreId(state.selectedStore!.name.toString());
                         Routes.navigateToScreen(Routes.inventorySessionScreen, NavigationType.pushNamed, context,arguments: state.selectedStore!.name.toString());
                       },
                     child: const Text('Continue'),
