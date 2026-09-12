@@ -53,6 +53,13 @@ class ProductUtils {
     );
   }
 
+  Future<void> deleteSubmittedProducts() async {
+    final String storeId = await getStoreId() ?? "";
+    await SecureStorageManager.getInstance().deleteValue(
+      '${SecureStorageKeys.submittedProductCountsKey}$storeId'
+    );
+  }
+
   Future<List<InventorySessionItemModel>> getSubmittedProducts() async {
     final String storeId = await getStoreId() ?? "";
 

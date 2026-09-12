@@ -107,7 +107,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
           controller.clear();
         }
         context.read<InventorySessionBloc>().add(const getProductsCountEvent());
-        AppUtils.showAppToast(context: context, message: 'Success');
+        AppUtils.showAppToast(context: context, message: "Success",backgroundColor: Colors.green);
         Navigator.of(context).pop();
       }
       return;

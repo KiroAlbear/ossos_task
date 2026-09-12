@@ -29,6 +29,11 @@ class InventorySessionRemoteDataSourceImpl
   Future<Either<Failure, InventorySessionModel>> submitInventorySession(
     InventorySessionRequestModel request,
   ) async {
+
+    return Future.value(
+      right(InventorySessionModel(sessionId: 123))
+    );
+
     return Future.value(
       left(
         InventorySessionConflictFailure(

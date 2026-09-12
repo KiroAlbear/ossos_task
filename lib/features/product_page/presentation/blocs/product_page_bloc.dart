@@ -66,6 +66,7 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
     _submitting = true;
     emit(ProductSubmissionLoadingState());
     try {
+
       await flushSaves();
       if (!allProductsCounted) {
         emit(
@@ -82,6 +83,7 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
         emit(ProductSubmissionErrorState('Please select a valid store first.'));
         return;
       }
+      await saveSubmittedProducts(storeKey);
       final items = _products.values
           .map(
             (product) => InventorySessionItemModel(
@@ -119,7 +121,7 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
           }
         },
         (session) async {
-          await saveSubmittedProducts(storeKey);
+          await ProductUtils().deleteSubmittedProducts();
           await resetProductsData(storeKey);
           if (!emit.isDone) emit(ProductSubmissionSuccessState(session));
         },
