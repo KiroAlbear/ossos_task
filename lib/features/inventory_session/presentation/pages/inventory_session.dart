@@ -13,7 +13,8 @@ import '../blocs/inventory_session_bloc.dart';
 import '../blocs/inventory_session_state.dart';
 
 class InventorySessionPage extends BaseStatefulWidget {
-  const InventorySessionPage({super.key});
+  final String appBarTitle;
+  const InventorySessionPage({super.key, required this.appBarTitle});
 
   static const Color primaryBlue = Color(0xFF2563EB);
   static const Color lightBlue = Color(0xFFEFF6FF);
@@ -33,7 +34,7 @@ class _InventorySessionPageState
   String? appBarTitle() => 'Product Count';
 
   @override
-  String? appBarSubtitle() => 'Cairo Store';
+  String? appBarSubtitle() => widget.appBarTitle;
 
   @override
   void initState() {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ossos_task/core/utils/product_utils.dart';
 import 'package:ossos_task/imports.dart';
 
 class StoreSelectionPage extends BaseStatefulWidget {
@@ -94,8 +95,9 @@ class _StoreSelectionPageState extends BaseStatefullState<StoreSelectionPage> {
                     onPressed: state.selectedStore == null
                         ? null
                         : () {
-
-                    },
+                        ProductUtils().saveStoreId(state.selectedStore!.name.toString());
+                        Routes.navigateToScreen(Routes.inventorySessionScreen, NavigationType.pushNamed, context,arguments: state.selectedStore!.name.toString());
+                      },
                     child: const Text('Continue'),
                   ),
                 ),

@@ -25,7 +25,7 @@ class Routes {
   static const String inventorySessionScreen = '/inventorySessionScreen';
 
   static final GoRouter goRouter = GoRouter(
-    initialLocation: inventorySessionScreen,
+    initialLocation: storeSelectionScreen,
     navigatorKey: rootNavigatorKey,
     debugLogDiagnostics: false,
     routes: <RouteBase>[
@@ -56,11 +56,14 @@ class Routes {
         path: inventorySessionScreen,
         name: inventorySessionScreen,
         parentNavigatorKey: rootNavigatorKey,
-        pageBuilder: (context, state) => _fadeTransitionScreenWrapper(
-          context,
-          state,
-          const InventorySessionPage(),
-        ),
+        pageBuilder: (context, state) {
+          final name = state.extra as String?;
+          return _fadeTransitionScreenWrapper(
+            context,
+            state,
+            InventorySessionPage(appBarTitle: name ?? 'Cairo Store'),
+          );
+        },
       ),
 
       // GoRoute(
