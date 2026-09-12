@@ -38,6 +38,7 @@ class _InventorySessionPageState
   @override
   void initState() {
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      if (!mounted) return;
       BlocProvider.of<InventorySessionBloc>(context)
           .add(getProductsCountEvent());
     });
@@ -53,6 +54,9 @@ class _InventorySessionPageState
         BaseBloc<InventorySessionBloc, BaseBlocState, ProductsProgressState>(
           showErrorToast: false,
           builder: (ProductsProgressState state) {
+            if (state.isLoadingProgress && state.total == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
             return (state.counted > 0 && (state.total ?? 0) > 0)
                 ? ActiveSessionCard(counted: state.counted, total: state.total!)
                 : const SizedBox();
@@ -60,8 +64,18 @@ class _InventorySessionPageState
         ),
         const SizedBox(height: 14),
         const QuickActionsCard(),
-        const SizedBox(height: 14),
-        const PendingSyncCard(),
+        BlocBuilder<InventorySessionBloc, BaseBlocState>(
+          builder: (context, state) {
+            if (state is! ProductsProgressState ||
+                !state.hasSubmittedProducts) {
+              return const SizedBox.shrink();
+            }
+            return const Padding(
+              padding: EdgeInsets.only(top: 14),
+              child: PendingSyncCard(),
+            );
+          },
+        ),
       ],
     );
   }

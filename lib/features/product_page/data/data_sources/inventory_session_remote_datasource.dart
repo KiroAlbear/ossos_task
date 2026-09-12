@@ -34,31 +34,31 @@ class InventorySessionRemoteDataSourceImpl
       right(InventorySessionModel(sessionId: 123))
     );
 
-    return Future.value(
-      left(
-        InventorySessionConflictFailure(
-          InventorySessionConflictModel(
-            conflicts: const [
-              InventorySessionConflictItemModel(
-                productId: 1,
-                expectedVersion: 2,
-                currentVersion: 3,
-                originalSystemQuantity: 50,
-                currentSystemQuantity: 45,
-                countedQuantity: 48,
-              ),
-              InventorySessionConflictItemModel(
-                productId: 2,
-                expectedVersion: 4,
-                currentVersion: 5,
-                originalSystemQuantity: 30,
-                currentSystemQuantity: 35,
-                countedQuantity: 32,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    // return Future.value(
+    //   left(
+    //     InventorySessionConflictFailure(
+    //       InventorySessionConflictModel(
+    //         conflicts: const [
+    //           InventorySessionConflictItemModel(
+    //             productId: 1,
+    //             expectedVersion: 2,
+    //             currentVersion: 3,
+    //             originalSystemQuantity: 50,
+    //             currentSystemQuantity: 45,
+    //             countedQuantity: 48,
+    //           ),
+    //           InventorySessionConflictItemModel(
+    //             productId: 2,
+    //             expectedVersion: 4,
+    //             currentVersion: 5,
+    //             originalSystemQuantity: 30,
+    //             currentSystemQuantity: 35,
+    //             countedQuantity: 32,
+    //           ),
+    //         ],
+    //       ),
+    //     ),
+    //   ),
+    // );
   }
 }
