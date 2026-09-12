@@ -191,22 +191,20 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
   }
 
   Future<void> _submit() async {
+    if (_submitting) return;
     FocusScope.of(context).unfocus();
     _submitting = true;
     _refresh();
     try {
-      await BlocProvider.of<ProductPageBloc>(context).flushSaves();
+      final bloc = BlocProvider.of<ProductPageBloc>(context);
+      await bloc.flushSaves();
       if (!mounted) return;
-      if (_storageError != null) {
-        _message(_storageError!);
-        return;
-      }
-      if (widget.onSubmit == null) {
+      if (!bloc.allProductsCounted) {
         await showDialog<void>(
           context: context,
           builder: (context) => AlertDialog(
             title: Text(
-              'Count saved locally',
+              'Count all products',
               style: AppTextStyles.create(
                 context,
                 fontSize: 20,
@@ -214,7 +212,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
               ),
             ),
             content: Text(
-              '${_productCountsMap.length} product counts are saved on this device. Server submission is not connected yet.',
+              'Please count all products before submitting. Your draft counts are saved locally.',
               style: AppTextStyles.create(context, fontSize: 14),
               overflow: TextOverflow.visible,
             ),
@@ -233,11 +231,19 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
             ],
           ),
         );
-      } else {
-        await widget.onSubmit!(Map<int, int>.unmodifiable(_productCountsMap));
-        if (mounted) _message('Count submitted.');
+        return;
       }
-    } catch (_) {
+      await bloc.saveSubmittedProducts(widget.storeId);
+      await bloc.resetProductsData(widget.storeId);
+      if (!mounted) return;
+      _productCountsMap.clear();
+      _savedProductsCountsMap.clear();
+      _editedIds.clear();
+      for (final controller in _controllers.values) {
+        controller.clear();
+      }
+      Navigator.of(context).pop();
+    } catch (e) {
       if (mounted) {
         _message('Unable to submit. Your local counts are retained.');
       }
@@ -912,7 +918,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
             ValueListenableBuilder<int>(
               valueListenable: _uiVersion,
               builder: (_, __, ___) => ElevatedButton.icon(
-                onPressed: _productCountsMap.isEmpty || _restoring || _submitting
+                onPressed: _restoring || _submitting
                     ? null
                     : _submit,
               style: ElevatedButton.styleFrom(

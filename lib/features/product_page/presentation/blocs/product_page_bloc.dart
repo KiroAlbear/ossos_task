@@ -3,6 +3,12 @@ import 'dart:convert';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ossos_task/imports.dart';
 
+import '../../../inventory_session/data/models/inventory_session_request_model.dart';
+
+class _ProductCountsResetEvent extends ProductPageEvent {
+  const _ProductCountsResetEvent();
+}
+
 class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
   final ProductPageUseCase _useCase;
   final _products = <int, ProductModel>{};
@@ -25,6 +31,7 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
   String? _storageError;
 
   ProductPageBloc(this._useCase) : super(InitialState()) {
+    on<_ProductCountsResetEvent>((event, emit) => _emitProducts(emit));
     on<RestoreProductCountsEvent>(_restoreCounts);
     on<ChangeProductCountEvent>(_changeProductCount);
     on<LoadProductsEvent>(_loadProducts);
@@ -39,13 +46,77 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
       _loadRemainingForFilter();
     });
     on<UpdateProductCountFiltersEvent>((event, emit) {
-      _countedIds = event.countedIds;
-      _statuses = event.statuses;
+      _countedIds = Set<int>.of(event.countedIds);
+      _statuses = Map<int, ProductCountStatus?>.of(event.statuses);
       _emitProducts(emit);
     });
   }
 
   Future<void> flushSaves() => _saveQueue;
+
+  bool get allProductsCounted =>
+      !_restoring &&
+      !_loading &&
+      _page >= _totalPages &&
+      _products.isNotEmpty &&
+      (_products.length == _totalItems) &&
+      _products.keys.every((id) => (_counts[id] ?? -1) >= 0);
+
+  /// Saves the completed count separately from the automatically saved draft.
+  Future<void> saveSubmittedProducts(String storeId) async {
+    await flushSaves();
+    final items = _products.values
+        .map(
+          (product) => InventorySessionItemModel(
+            productId: product.id,
+            countedQuantity: _counts[product.id]!,
+            expectedVersion: product.version,
+          ).toJson(),
+        )
+        .toList();
+    await SecureStorageManager.getInstance().setObject(
+      'submitted_product_counts_$storeId',
+      items,
+    );
+  }
+
+  Future<List<InventorySessionItemModel>> getSavedCountedProducts(
+    String storeId,
+  ) async {
+    final raw = await SecureStorageManager.getInstance().getValue(
+      'submitted_product_counts_$storeId',
+    );
+    if (raw == null) return [];
+    return (jsonDecode(raw) as List<dynamic>)
+        .map(
+          (item) =>
+              InventorySessionItemModel.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
+  /// Clears the draft after submission while keeping the submitted items.
+  Future<void> resetProductsData(String storeId) async {
+    await flushSaves();
+    await SecureStorageManager.getInstance().deleteValue(
+      'product_counts_$storeId',
+    );
+    _counts.clear();
+    _savedCounts.clear();
+    _restoredCounts.clear();
+    _countedIds.clear();
+    _statuses.clear();
+    _storageError = null;
+    _restoreError = null;
+    _filter = ProductCountFilter.all;
+    if (!isClosed) {
+      final updated = stream.firstWhere(
+        (state) => state is ProductPageState && state.productCountsMap.isEmpty,
+      );
+      add(const _ProductCountsResetEvent());
+      await updated;
+    }
+  }
 
   Future<void> _restoreCounts(
     RestoreProductCountsEvent event,
@@ -56,8 +127,9 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
     _restoredCounts.clear();
     _emitProducts(emit);
     try {
-
-      _restoredCounts = await _useCase.getProductsSharedPrefrences(event.storeId);
+      _restoredCounts = await _useCase.getProductsSharedPrefrences(
+        event.storeId,
+      );
 
       _counts
         ..clear()
