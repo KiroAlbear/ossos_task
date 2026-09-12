@@ -8,6 +8,7 @@ import 'package:ossos_task/imports.dart';
 
 import '../../../inventory_session/presentation/blocs/inventory_session_bloc.dart';
 import '../../../inventory_session/presentation/blocs/inventory_session_event.dart';
+import '../widgets/product_conflicts_sheet.dart';
 
 /// Counts are saved per store. Supply callbacks to connect submission/scanning
 /// and image/status maps when these are available from the inventory service.
@@ -56,7 +57,6 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
   String? _storageError;
   void _refresh() => _uiVersion.value++;
 
-
   @override
   void onPopInvoked(bool didPop) {
     BlocProvider.of<InventorySessionBloc>(context).add(getProductsCountEvent());
@@ -70,9 +70,8 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
     // Subscribe to the Bloc before the first request can finish.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      BlocProvider.of<ProductPageBloc>(context).add(
-        RestoreProductCountsEvent(widget.storeId),
-      );
+      BlocProvider.of<ProductPageBloc>(context)
+          .add(RestoreProductCountsEvent(widget.storeId));
       _loadMore();
     });
   }
@@ -82,10 +81,37 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
     _loading = true;
     _error = null;
     _refresh();
-    BlocProvider.of<ProductPageBloc>(context).add(LoadProductsEvent(page: _page + 1, limit: _pageSize));
+    BlocProvider.of<ProductPageBloc>(context)
+        .add(LoadProductsEvent(page: _page + 1, limit: _pageSize));
   }
 
   void _receive(BuildContext context, BaseBlocState state) {
+    if (state is ProductSubmissionState) {
+      _submitting = state is ProductSubmissionLoadingState;
+      _refresh();
+      if (state is ProductSubmissionConflictState) {
+        AppUtils.showAppBottomSheet(
+          context: context,
+          child: ProductConflictsSheet(
+            conflict: state.conflict,
+            request: state.request,
+          ),
+        );
+      } else if (state is ProductSubmissionErrorState) {
+        AppUtils.showAppToast(context: context, message: state.message);
+      } else if (state is ProductSubmissionSuccessState) {
+        _productCountsMap.clear();
+        _savedProductsCountsMap.clear();
+        _editedIds.clear();
+        for (final controller in _controllers.values) {
+          controller.clear();
+        }
+        context.read<InventorySessionBloc>().add(const getProductsCountEvent());
+        AppUtils.showAppToast(context: context, message: 'Success');
+        Navigator.of(context).pop();
+      }
+      return;
+    }
     if (state is ProductPageState) {
       final didRestore = _restoring && !state.isRestoring;
       final previousCounts = Map<int, int>.of(_productCountsMap);
@@ -109,14 +135,22 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
       _storageError = state.storageError ?? state.restoreError;
       _page = state.page;
       _hasMore = state.hasNextPage;
-      _total = state.productPage.totalItems ?? (_hasMore ? null : state.products.length);
+      _total =
+          state.productPage.totalItems ??
+          (_hasMore ? null : state.products.length);
       _loading = state.isLoading;
       _error = state.errorMessage;
       _refresh();
-      final countsChanged = previousCounts.length != _productCountsMap.length ||
-          previousCounts.entries.any((entry) => _productCountsMap[entry.key] != entry.value);
-      final savedCountsChanged = previousSavedCounts.length != _savedProductsCountsMap.length ||
-          previousSavedCounts.entries.any((entry) => _savedProductsCountsMap[entry.key] != entry.value);
+      final countsChanged =
+          previousCounts.length != _productCountsMap.length ||
+          previousCounts.entries.any(
+            (entry) => _productCountsMap[entry.key] != entry.value,
+          );
+      final savedCountsChanged =
+          previousSavedCounts.length != _savedProductsCountsMap.length ||
+          previousSavedCounts.entries.any(
+            (entry) => _savedProductsCountsMap[entry.key] != entry.value,
+          );
       if (didRestore || countsChanged || savedCountsChanged) {
         _updateCountFilters();
       }
@@ -159,7 +193,11 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
   }
 
   void _updateCountFilters() {
-    final ids = {...widget.statuses.keys, ..._productCountsMap.keys, ..._editedIds};
+    final ids = {
+      ...widget.statuses.keys,
+      ..._productCountsMap.keys,
+      ..._editedIds,
+    };
     BlocProvider.of<ProductPageBloc>(context).add(
       UpdateProductCountFiltersEvent(
         countedIds: _productCountsMap.keys.toSet(),
@@ -202,29 +240,29 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
       if (!bloc.allProductsCounted) {
         await showDialog<void>(
           context: context,
-          builder: (context){
-            return DialogWidget(message: "Please count all products before submitting. Your draft counts are saved locally.",confirmText: "Done",);
-          });
+          builder: (context) {
+            return DialogWidget(
+              message: "Please count all products before submitting. Your draft counts are saved locally.",
+              confirmText: "Done",
+            );
+          },
+        );
+        if (mounted) {
+          _submitting = false;
+          _refresh();
+        }
         return;
       }
-      await bloc.submitCount();
-      if (!mounted) return;
-      _productCountsMap.clear();
-      _savedProductsCountsMap.clear();
-      _editedIds.clear();
-      for (final controller in _controllers.values) {
-        controller.clear();
-      }
-      Navigator.of(context).pop();
+      bloc.add(const SubmitProductCountEvent());
+      return;
     } catch (e) {
       if (mounted) {
         _message('Unable to submit. Your local counts are retained.');
       }
-    } finally {
-      if (mounted) {
-        _submitting = false;
-        _refresh();
-      }
+    }
+    if (mounted) {
+      _submitting = false;
+      _refresh();
     }
   }
 
@@ -252,47 +290,44 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
   @override
   Widget getBody(BuildContext context) {
     return BaseBloc<ProductPageBloc, BaseBlocState, ProductPageState>(
-        listener: _receive,
-        loadingWidget: const CircularProgressIndicator(color: _blue),
-        errorWidget: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _error ?? 'Unable to load products.',
+      listener: _receive,
+      showErrorToast: false,
+      buildWhen: (_, state) => state is! ProductSubmissionState,
+      loadingWidget: const CircularProgressIndicator(color: _blue),
+      errorWidget: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _error ?? 'Unable to load products.',
+              style: AppTextStyles.create(context, fontSize: 14, color: _muted),
+            ),
+            TextButton(
+              onPressed: _loadMore,
+              child: Text(
+                'Retry',
                 style: AppTextStyles.create(
                   context,
                   fontSize: 14,
-                  color: _muted,
+                  color: _blue,
                 ),
               ),
-              TextButton(
-                onPressed: _loadMore,
-                child: Text(
-                  'Retry',
-                  style: AppTextStyles.create(
-                    context,
-                    fontSize: 14,
-                    color: _blue,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        builder: (state) => Column(
-          children: [
-            _offlineBanner(),
-            const SizedBox(height: 9),
-            _searchField(),
-            const SizedBox(height: 8),
-            _filters(state),
-            const SizedBox(height: 8),
-            Expanded(child: _list(state)),
+            ),
           ],
         ),
-      );
-
+      ),
+      builder: (state) => Column(
+        children: [
+          _offlineBanner(),
+          const SizedBox(height: 9),
+          _searchField(),
+          const SizedBox(height: 8),
+          _filters(state),
+          const SizedBox(height: 8),
+          Expanded(child: _list(state)),
+        ],
+      ),
+    );
   }
 
   Widget _offlineBanner() => Container(
@@ -309,15 +344,15 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
           child: ValueListenableBuilder<int>(
             valueListenable: _uiVersion,
             builder: (_, __, ___) => Text(
-            _storageError ?? 'Offline mode — changes are saved locally',
-            style: AppTextStyles.create(
-              context,
-              fontSize: 11.5,
-              color: _storageError == null
-                  ? const Color(0xFF005BCD)
-                  : Colors.red,
-              fontWeight: FontWeight.w600,
-            ),
+              _storageError ?? 'Offline mode — changes are saved locally',
+              style: AppTextStyles.create(
+                context,
+                fontSize: 11.5,
+                color: _storageError == null
+                    ? const Color(0xFF005BCD)
+                    : Colors.red,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ),
@@ -340,7 +375,9 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
   Widget _searchField() => TextField(
     controller: _search,
     style: AppTextStyles.create(context, fontSize: 13),
-    onChanged: (query) => BlocProvider.of<ProductPageBloc>(context).add(SearchProductsEvent(query)),
+    onChanged: (query) =>
+        BlocProvider.of<ProductPageBloc>(context)
+            .add(SearchProductsEvent(query)),
     decoration: InputDecoration(
       hintText: 'Search by product name, SKU, barcode',
       hintStyle: AppTextStyles.create(context, fontSize: 12.5, color: _muted),
@@ -393,9 +430,8 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
                 ),
               ),
               onPressed: () {
-                BlocProvider.of<ProductPageBloc>(context).add(
-                  FilterProductsEvent(ProductCountFilter.values[index]),
-                );
+                BlocProvider.of<ProductPageBloc>(context)
+                    .add(FilterProductsEvent(ProductCountFilter.values[index]));
               },
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -497,7 +533,9 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
   Widget _card(ProductModel product) {
     final controller = _controllers.putIfAbsent(
       product.id,
-      () => TextEditingController(text: _productCountsMap[product.id]?.toString() ?? ''),
+      () => TextEditingController(
+        text: _productCountsMap[product.id]?.toString() ?? '',
+      ),
     );
     final count = _productCountsMap[product.id];
     final difference = count == null ? null : count - product.systemQuantity;
@@ -657,7 +695,8 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
                             FilteringTextInputFormatter.digitsOnly,
                             LengthLimitingTextInputFormatter(9),
                           ],
-                          onChanged: (value) => _changeProductCount(product.id, value),
+                          onChanged: (value) =>
+                              _changeProductCount(product.id, value),
                           decoration: InputDecoration(
                             hintText: '—',
                             hintStyle: AppTextStyles.create(
@@ -852,20 +891,24 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
                     valueListenable: _uiVersion,
                     builder: (_, __, ___) => Text.rich(
                       TextSpan(
-                      children: [
-                        TextSpan(
-                          text: '${_productCountsMap.length} / ${_total ?? '…'} ',
-                          style: AppTextStyles.create(
-                            context,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                        children: [
+                          TextSpan(
+                            text:
+                                '${_productCountsMap.length} / ${_total ?? '…'} ',
+                            style: AppTextStyles.create(
+                              context,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                        TextSpan(
-                          text: 'products counted',
-                          style: AppTextStyles.create(context, fontSize: 10.5),
-                        ),
-                      ],
+                          TextSpan(
+                            text: 'products counted',
+                            style: AppTextStyles.create(
+                              context,
+                              fontSize: 10.5,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -877,7 +920,10 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
                       child: LinearProgressIndicator(
                         value: _total == null || _total == 0
                             ? 0.0
-                            : (_productCountsMap.length / _total!).clamp(0.0, 1.0),
+                            : (_productCountsMap.length / _total!).clamp(
+                                0.0,
+                                1.0,
+                              ),
                         minHeight: 7,
                         color: _blue,
                         backgroundColor: const Color(0xFFE1E6EE),
@@ -891,37 +937,35 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
             ValueListenableBuilder<int>(
               valueListenable: _uiVersion,
               builder: (_, __, ___) => ElevatedButton.icon(
-                onPressed: _restoring || _submitting
-                    ? null
-                    : _submit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _blue,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 17),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(11),
+                onPressed: _restoring || _submitting ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _blue,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 17),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(11),
+                  ),
                 ),
-              ),
-              icon: _submitting
-                  ? SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: const CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Icon(Icons.send_outlined, size: 22),
-              label: Text(
-                'Submit Count',
-                style: AppTextStyles.create(
-                  context,
-                  fontSize: 13,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
+                icon: _submitting
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Icon(Icons.send_outlined, size: 22),
+                label: Text(
+                  'Submit Count',
+                  style: AppTextStyles.create(
+                    context,
+                    fontSize: 13,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
               ),
             ),
           ],

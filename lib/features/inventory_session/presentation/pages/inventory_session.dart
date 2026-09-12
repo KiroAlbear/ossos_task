@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:gap/gap.dart';
+
 import 'package:ossos_task/core/base/base_bloc.dart';
 import 'package:ossos_task/core/base/base_bloc_state.dart';
 import 'package:ossos_task/core/base/base_stateful_widget.dart';
@@ -8,7 +8,6 @@ import 'package:ossos_task/core/core.dart';
 import 'package:ossos_task/core/routes/routes.dart';
 import 'package:ossos_task/core/utils/product_utils.dart';
 import 'package:ossos_task/features/inventory_session/inventory_session.dart';
-import 'package:ossos_task/features/product_page/presentation/blocs/product_page_bloc.dart';
 
 import '../blocs/inventory_session_bloc.dart';
 import '../blocs/inventory_session_state.dart';
@@ -28,8 +27,8 @@ class InventorySessionPage extends BaseStatefulWidget {
   State<InventorySessionPage> createState() => _InventorySessionPageState();
 }
 
-class _InventorySessionPageState extends BaseStatefullState<InventorySessionPage> {
-
+class _InventorySessionPageState
+    extends BaseStatefullState<InventorySessionPage> {
   @override
   String? appBarTitle() => 'Product Count';
 
@@ -38,103 +37,50 @@ class _InventorySessionPageState extends BaseStatefullState<InventorySessionPage
 
   @override
   void initState() {
-
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-      BlocProvider.of<InventorySessionBloc>(context).add(getProductsCountEvent());
-    },);
+      BlocProvider.of<InventorySessionBloc>(context)
+          .add(getProductsCountEvent());
+    });
 
     super.initState();
   }
 
-
   @override
   Widget getBody(BuildContext context) {
     return ListView(
-        padding: const EdgeInsets.all(14),
-        children: [
-          BaseBloc<InventorySessionBloc, BaseBlocState,ProductsProgressState>(
-            showErrorToast: false,
-            builder: (ProductsProgressState state) {
-              return (state.counted>0 && (state.total??0)>0) ? ActiveSessionCard(counted: state.counted, total: state.total!) : const SizedBox();
-            },
-          ),
-          const SizedBox(height: 14),
-          const QuickActionsCard(),
-          const SizedBox(height: 14),
-          const PendingSyncCard(),
-        ],
-      );
+      padding: const EdgeInsets.all(14),
+      children: [
+        BaseBloc<InventorySessionBloc, BaseBlocState, ProductsProgressState>(
+          showErrorToast: false,
+          builder: (ProductsProgressState state) {
+            return (state.counted > 0 && (state.total ?? 0) > 0)
+                ? ActiveSessionCard(counted: state.counted, total: state.total!)
+                : const SizedBox();
+          },
+        ),
+        const SizedBox(height: 14),
+        const QuickActionsCard(),
+        const SizedBox(height: 14),
+        const PendingSyncCard(),
+      ],
+    );
   }
 }
 
 class ActiveSessionCard extends StatefulWidget {
   final int counted;
   final int total;
-  const ActiveSessionCard({super.key, required this.counted, required this.total});
+  const ActiveSessionCard({
+    super.key,
+    required this.counted,
+    required this.total,
+  });
 
   @override
   State<ActiveSessionCard> createState() => _ActiveSessionCardState();
 }
 
 class _ActiveSessionCardState extends State<ActiveSessionCard> {
-  bool _submitting = false;
-
-  Widget _conflictQuantityRow(String label, int quantity) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: Text(label)),
-          const SizedBox(width: 12),
-          Text(
-            '$quantity',
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _submit() async {
-    if (_submitting) return;
-    setState(() => _submitting = true);
-    try {
-      final storeId = await ProductUtils().getStoreId();
-      if (!mounted) return;
-      if (storeId == null || storeId.isEmpty) {
-        throw StateError('Please select a store first.');
-      }
-      await context.read<ProductPageBloc>().submitCount();
-      if (!mounted) return;
-      context.read<InventorySessionBloc>().add(const getProductsCountEvent());
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            error is StateError
-                ? error.message.toString()
-                : 'Unable to submit. Your local counts are retained.',
-          ),
-          action: SnackBarAction(
-            label: 'Resume Counting',
-            onPressed: () {
-              if (!mounted) return;
-              Routes.navigateToScreen(
-                Routes.productsScreen,
-                NavigationType.pushNamed,
-                context,
-              );
-            },
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _submitting = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final counted = widget.counted;
@@ -249,7 +195,11 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
               Expanded(
                 child: FilledButton.icon(
                   onPressed: () {
-                    Routes.navigateToScreen(Routes.productsScreen,NavigationType.pushNamed,context);
+                    Routes.navigateToScreen(
+                      Routes.productsScreen,
+                      NavigationType.pushNamed,
+                      context,
+                    );
                   },
                   icon: const Icon(Icons.play_arrow_rounded),
                   label: const Text('Resume Counting'),
@@ -263,132 +213,6 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                   ),
                 ),
               ),
-            counted == total? Gap(10):Gap(0),
-             counted == total? Expanded(
-                child: BaseBloc<InventorySessionBloc,BaseBlocState, SuccessState>(
-
-                  showErrorToast: false,
-                  listener: (p0, p1) {
-                    if(p1 is InventorySessionState){
-                      AppUtils.showAppToast(context: context, message: "Success");
-                    }
-                    if(p1 is InventorySessionConflictState){
-                      final productNames = {
-                        for (final item in p1.request.items)
-                          item.productId: item.name,
-                      };
-                      AppUtils.showAppBottomSheet(
-                        context: context,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxHeight: MediaQuery.sizeOf(context).height * 0.65,
-                          ),
-                          child: ListView(
-                            shrinkWrap: true,
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            children: [
-                              const Text(
-                                'Product conflicts',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: InventorySessionPage.darkText,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              if (p1.conflict.conflicts.isEmpty)
-                                const Text('No product conflicts.'),
-                              for (final product in p1.conflict.conflicts)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: AppCard(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                                      children: [
-                                        Text(
-                                          productNames[product.productId]?.trim().isNotEmpty == true
-                                              ? productNames[product.productId]!
-                                              : 'Product #${product.productId}',
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w700,
-                                            color: InventorySessionPage.darkText,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        _conflictQuantityRow(
-                                          'Original system quantity',
-                                          product.originalSystemQuantity,
-                                        ),
-                                        _conflictQuantityRow(
-                                          'Current system quantity',
-                                          product.currentSystemQuantity,
-                                        ),
-                                        _conflictQuantityRow(
-                                          'Counted quantity',
-                                          product.countedQuantity,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                  builder: (state) {
-                    return OutlinedButton.icon(
-                      onPressed: (){
-                        _submitting ? null : _submit;
-                        BlocProvider.of<InventorySessionBloc>(context).add(
-                          SubmitInventorySessionEvent(
-                            InventorySessionRequestModel(
-                              clientSessionId: 'dummy-session-001',
-                              storeId: 1,
-                              createdAt: DateTime.utc(2026, 9, 12, 10),
-                              items: const [
-                                InventorySessionItemModel(
-                                  name: "test",
-                                  productId: 1,
-                                  countedQuantity: 48,
-                                  expectedVersion: 2,
-                                ),
-                                InventorySessionItemModel(
-                                  name: "test",
-                                  productId: 2,
-                                  countedQuantity: 32,
-                                  expectedVersion: 4,
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                      icon: _submitting
-                          ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                          : const Icon(Icons.send_rounded),
-                      label: Text(_submitting ? 'Submitting...' : 'Submit Count'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: InventorySessionPage.primaryBlue,
-                        side: const BorderSide(
-                          color: InventorySessionPage.primaryBlue,
-                          width: 1.4,
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(9),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ):SizedBox(),
             ],
           ),
         ],
@@ -420,11 +244,19 @@ class QuickActionsCard extends StatelessWidget {
                   icon: Icons.add_circle_rounded,
                   title: 'Start New\nSession',
                   onTap: () async {
-                    final Map<int,int> products = await ProductUtils().getProductsSharedPrefrences();
-                    if(products.isEmpty) {
-                      Routes.navigateToScreen(Routes.productsScreen,NavigationType.pushNamed,context);
-                    }else{
-                      AppUtils.showAppToast(context: context, message: "You have session in progress");
+                    final Map<int, int> products = await ProductUtils()
+                        .getProductsSharedPrefrences();
+                    if (products.isEmpty) {
+                      Routes.navigateToScreen(
+                        Routes.productsScreen,
+                        NavigationType.pushNamed,
+                        context,
+                      );
+                    } else {
+                      AppUtils.showAppToast(
+                        context: context,
+                        message: "You have session in progress",
+                      );
                     }
                   },
                 ),
@@ -437,7 +269,6 @@ class QuickActionsCard extends StatelessWidget {
                   onTap: () {},
                 ),
               ),
-
             ],
           ),
         ],
@@ -526,10 +357,7 @@ class PendingSyncCard extends StatelessWidget {
 class AppCard extends StatelessWidget {
   final Widget child;
 
-  const AppCard({
-    super.key,
-    required this.child,
-  });
+  const AppCard({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -538,9 +366,7 @@ class AppCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFE5E7EB),
-        ),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x14000000),
@@ -575,11 +401,7 @@ class SectionTitle extends StatelessWidget {
         CircleAvatar(
           radius: 13,
           backgroundColor: iconBackground,
-          child: Icon(
-            icon,
-            color: iconColor,
-            size: 17,
-          ),
+          child: Icon(icon, color: iconColor, size: 17),
         ),
         const SizedBox(width: 8),
         Text(
@@ -599,21 +421,13 @@ class InfoRow extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  const InfoRow({
-    super.key,
-    required this.icon,
-    required this.text,
-  });
+  const InfoRow({super.key, required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(
-          icon,
-          size: 17,
-          color: InventorySessionPage.darkText,
-        ),
+        Icon(icon, size: 17, color: InventorySessionPage.darkText),
         const SizedBox(width: 9),
         Text(
           text,
@@ -645,10 +459,7 @@ class StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(8),
@@ -656,11 +467,7 @@ class StatusChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 14,
-            color: textColor,
-          ),
+          Icon(icon, size: 14, color: textColor),
           const SizedBox(width: 4),
           Text(
             label,
@@ -702,11 +509,7 @@ class ActionTile extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                color: InventorySessionPage.primaryBlue,
-                size: 24,
-              ),
+              Icon(icon, color: InventorySessionPage.primaryBlue, size: 24),
               const SizedBox(height: 7),
               Text(
                 title,

@@ -2,6 +2,29 @@ import 'package:ossos_task/imports.dart';
 
 enum ProductCountStatus { savedLocally, pendingSync, conflict, synced }
 
+abstract class ProductSubmissionState extends BaseBlocState {}
+
+class ProductSubmissionLoadingState extends ProductSubmissionState {}
+
+class ProductSubmissionSuccessState extends ProductSubmissionState {
+  final InventorySessionModel session;
+  ProductSubmissionSuccessState(this.session);
+}
+
+class ProductSubmissionConflictState extends ProductSubmissionState {
+  final InventorySessionConflictModel conflict;
+  final InventorySessionRequestModel request;
+  ProductSubmissionConflictState({
+    required this.conflict,
+    required this.request,
+  });
+}
+
+class ProductSubmissionErrorState extends ProductSubmissionState {
+  final String message;
+  ProductSubmissionErrorState(this.message);
+}
+
 enum ProductCountFilter { all, counted, notCounted, conflicts }
 
 class ProductPageState extends SuccessState {

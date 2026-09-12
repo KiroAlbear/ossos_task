@@ -1,4 +1,3 @@
-
 class InventorySessionRequestModel {
   final String clientSessionId;
   final int storeId;
@@ -20,9 +19,9 @@ class InventorySessionRequestModel {
       items: (json['items'] as List<dynamic>)
           .map(
             (item) => InventorySessionItemModel.fromJson(
-          item as Map<String, dynamic>,
-        ),
-      )
+              item as Map<String, dynamic>,
+            ),
+          )
           .toList(),
     );
   }
@@ -64,4 +63,3 @@ class InventorySessionItemModel {
     'expectedVersion': expectedVersion,
   };
 }
-

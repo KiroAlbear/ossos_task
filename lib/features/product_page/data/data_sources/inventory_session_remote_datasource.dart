@@ -1,7 +1,5 @@
-import 'dart:convert';
-
 import 'package:dartz/dartz.dart';
-import 'package:dio/dio.dart';
+
 import 'package:ossos_task/imports.dart';
 
 import '../../domain/failures/inventory_session_conflict_failure.dart';
@@ -31,7 +29,6 @@ class InventorySessionRemoteDataSourceImpl
   Future<Either<Failure, InventorySessionModel>> submitInventorySession(
     InventorySessionRequestModel request,
   ) async {
-
     return Future.value(
       left(
         InventorySessionConflictFailure(
@@ -58,8 +55,5 @@ class InventorySessionRemoteDataSourceImpl
         ),
       ),
     );
-
   }
-
-
 }

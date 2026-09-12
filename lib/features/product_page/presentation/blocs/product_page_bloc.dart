@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ossos_task/core/utils/product_utils.dart';
 import 'package:ossos_task/imports.dart';
 
-import '../../../inventory_session/data/models/inventory_session_request_model.dart';
+import '../../data/models/inventory_session_request_model.dart';
 
 class _ProductCountsResetEvent extends ProductPageEvent {
   const _ProductCountsResetEvent();
@@ -12,6 +12,7 @@ class _ProductCountsResetEvent extends ProductPageEvent {
 
 class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
   final ProductPageUseCase _useCase;
+  final InventorySessionUseCase _submitUseCase;
   final _products = <int, ProductModel>{};
   Set<int> _countedIds = {};
   Map<int, ProductCountStatus?> _statuses = {};
@@ -32,11 +33,12 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
   String? _storageError;
   bool _submitting = false;
 
-  ProductPageBloc(this._useCase) : super(InitialState()) {
+  ProductPageBloc(this._useCase, this._submitUseCase) : super(InitialState()) {
     on<_ProductCountsResetEvent>((event, emit) => _emitProducts(emit));
     on<RestoreProductCountsEvent>(_restoreCounts);
     on<ChangeProductCountEvent>(_changeProductCount);
     on<LoadProductsEvent>(_loadProducts);
+    on<SubmitProductCountEvent>(_submitCount);
     on<SearchProductsEvent>((event, emit) {
       _query = event.query;
       _emitProducts(emit);
@@ -56,28 +58,80 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
 
   Future<void> flushSaves() => _saveQueue;
 
-  /// Saves a completed count locally and clears its draft for either page.
-  Future<void> submitCount() async {
-    final String storeId = await ProductUtils().getStoreId()??"";
-    if (_submitting) {
-      throw StateError('A submission is already in progress.');
-    }
-    if (storeId.isEmpty) {
-      throw StateError('Please select a store first.');
-    }
+  Future<void> _submitCount(
+    SubmitProductCountEvent event,
+    Emitter<BaseBlocState> emit,
+  ) async {
+    if (_submitting) return;
     _submitting = true;
+    emit(ProductSubmissionLoadingState());
     try {
       await flushSaves();
-      if (_restoring || _loading || _page < _totalPages) {
-        throw StateError(
-          'Open the product count page to load all products before submitting.',
+      if (!allProductsCounted) {
+        emit(
+          ProductSubmissionErrorState(
+            'Please count all products before submitting.',
+          ),
+        );
+        return;
+      }
+      final storeKey = await ProductUtils().getStoreId() ?? '';
+      // Preserve the existing Cairo demo draft key; its API store ID is 1.
+      final storeId = storeKey == 'cairo' ? 1 : int.tryParse(storeKey);
+      if (storeId == null || storeId <= 0) {
+        emit(ProductSubmissionErrorState('Please select a valid store first.'));
+        return;
+      }
+      final items = _products.values
+          .map(
+            (product) => InventorySessionItemModel(
+              productId: product.id,
+              name: product.name,
+              countedQuantity: _counts[product.id]!,
+              expectedVersion: product.version,
+            ),
+          )
+          .toList();
+
+      final now = DateTime.now().toUtc();
+
+      final request = InventorySessionRequestModel(
+        clientSessionId: '$storeId-${now.microsecondsSinceEpoch}',
+        storeId: storeId,
+        createdAt: now,
+        items: items,
+      );
+      final result = await _submitUseCase(
+        InventorySessionParams(request: request),
+      );
+      if (emit.isDone) return;
+      await result.fold<Future<void>>(
+        (failure) async {
+          if (failure is InventorySessionConflictFailure) {
+            emit(
+              ProductSubmissionConflictState(
+                conflict: failure.conflict,
+                request: request,
+              ),
+            );
+          } else {
+            emit(ProductSubmissionErrorState(failure.message));
+          }
+        },
+        (session) async {
+          await saveSubmittedProducts(storeKey);
+          await resetProductsData(storeKey);
+          if (!emit.isDone) emit(ProductSubmissionSuccessState(session));
+        },
+      );
+    } catch (_) {
+      if (!emit.isDone) {
+        emit(
+          ProductSubmissionErrorState(
+            'Unable to submit. Your local counts are retained. Please retry.',
+          ),
         );
       }
-      if (!allProductsCounted) {
-        throw StateError('Please count all products before submitting.');
-      }
-      await saveSubmittedProducts(storeId);
-      await resetProductsData(storeId);
     } finally {
       _submitting = false;
     }
@@ -88,7 +142,7 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
       !_loading &&
       _page >= _totalPages &&
       _products.isNotEmpty &&
-      (_products.length == _totalItems) &&
+      (_products.length == (_totalItems ?? _products.length)) &&
       _products.keys.every((id) => (_counts[id] ?? -1) >= 0);
 
   /// Saves the completed count separately from the automatically saved draft.
@@ -106,7 +160,6 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
         .toList();
 
     await ProductUtils().saveSubmittedProducts(items);
-
   }
 
   Future<List<InventorySessionItemModel>> getSavedCountedProducts(
@@ -170,6 +223,7 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
     ChangeProductCountEvent event,
     Emitter<BaseBlocState> emit,
   ) async {
+    if (_submitting) return;
     final count = int.tryParse(event.value);
     if (count == null) {
       _counts.remove(event.productId);
@@ -181,7 +235,7 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
     // final snapshot = Map<int, int>.of(_counts);
     _saveQueue = _saveQueue.then((_) async {
       try {
-        await ProductUtils().savePproductsSharedPrefrence(_counts,);
+        await ProductUtils().savePproductsSharedPrefrence(_counts);
         _savedCounts
           ..clear()
           ..addAll(_counts);

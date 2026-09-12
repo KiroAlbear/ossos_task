@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:ossos_task/core/core.dart';
 
-import '../../features/inventory_session/data/models/inventory_session_request_model.dart';
+import '../../features/product_page/data/models/inventory_session_request_model.dart';
 import '../services/secure_storage/secure_storage_manager.dart';
 
 class ProductUtils {

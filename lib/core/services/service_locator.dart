@@ -20,9 +20,7 @@ class ServiceLocator {
     getIt.registerLazySingleton<InventorySessionUseCase>(
       () => InventorySessionUseCase(getIt()),
     );
-    getIt.registerFactory<InventorySessionBloc>(
-      () => InventorySessionBloc(getIt()),
-    );
+    getIt.registerFactory<InventorySessionBloc>(() => InventorySessionBloc());
     getIt.registerLazySingleton<ProductPageRemoteDataSource>(
       () => ProductPageRemoteDataSourceImpl(),
     );
@@ -32,7 +30,9 @@ class ServiceLocator {
     getIt.registerLazySingleton<ProductPageUseCase>(
       () => ProductPageUseCase(getIt()),
     );
-    getIt.registerFactory<ProductPageBloc>(() => ProductPageBloc(getIt()));
+    getIt.registerFactory<ProductPageBloc>(
+      () => ProductPageBloc(getIt(), getIt()),
+    );
     getIt.registerLazySingleton<StoreSelectionRemoteDataSource>(
       () => StoreSelectionRemoteDataSourceImpl(),
     );
