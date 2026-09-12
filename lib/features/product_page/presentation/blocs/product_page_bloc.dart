@@ -97,31 +97,22 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
     final items = _products.values
         .map(
           (product) => InventorySessionItemModel(
+            name: product.name,
             productId: product.id,
             countedQuantity: _counts[product.id]!,
             expectedVersion: product.version,
           ).toJson(),
         )
         .toList();
-    await SecureStorageManager.getInstance().setObject(
-      'submitted_product_counts_$storeId',
-      items,
-    );
+
+    await ProductUtils().saveSubmittedProducts(items);
+
   }
 
   Future<List<InventorySessionItemModel>> getSavedCountedProducts(
     String storeId,
   ) async {
-    final raw = await SecureStorageManager.getInstance().getValue(
-      'submitted_product_counts_$storeId',
-    );
-    if (raw == null) return [];
-    return (jsonDecode(raw) as List<dynamic>)
-        .map(
-          (item) =>
-              InventorySessionItemModel.fromJson(item as Map<String, dynamic>),
-        )
-        .toList();
+    return await ProductUtils().getSubmittedProducts();
   }
 
   /// Clears the draft after submission while keeping the submitted items.

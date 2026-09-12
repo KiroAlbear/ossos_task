@@ -79,6 +79,23 @@ class ActiveSessionCard extends StatefulWidget {
 class _ActiveSessionCardState extends State<ActiveSessionCard> {
   bool _submitting = false;
 
+  Widget _conflictQuantityRow(String label, int quantity) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: Text(label)),
+          const SizedBox(width: 12),
+          Text(
+            '$quantity',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _submit() async {
     if (_submitting) return;
     setState(() => _submitting = true);
@@ -255,8 +272,70 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                     if(p1 is InventorySessionState){
                       AppUtils.showAppToast(context: context, message: "Success");
                     }
-                    if(p1 is ErrorState){
-                      AppUtils.showAppToast(context: context, message: p1.errorMessage??"");
+                    if(p1 is InventorySessionConflictState){
+                      final productNames = {
+                        for (final item in p1.request.items)
+                          item.productId: item.name,
+                      };
+                      AppUtils.showAppBottomSheet(
+                        context: context,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: MediaQuery.sizeOf(context).height * 0.65,
+                          ),
+                          child: ListView(
+                            shrinkWrap: true,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            children: [
+                              const Text(
+                                'Product conflicts',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: InventorySessionPage.darkText,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              if (p1.conflict.conflicts.isEmpty)
+                                const Text('No product conflicts.'),
+                              for (final product in p1.conflict.conflicts)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: AppCard(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        Text(
+                                          productNames[product.productId]?.trim().isNotEmpty == true
+                                              ? productNames[product.productId]!
+                                              : 'Product #${product.productId}',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700,
+                                            color: InventorySessionPage.darkText,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        _conflictQuantityRow(
+                                          'Original system quantity',
+                                          product.originalSystemQuantity,
+                                        ),
+                                        _conflictQuantityRow(
+                                          'Current system quantity',
+                                          product.currentSystemQuantity,
+                                        ),
+                                        _conflictQuantityRow(
+                                          'Counted quantity',
+                                          product.countedQuantity,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
                     }
                   },
                   builder: (state) {
@@ -271,11 +350,13 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                               createdAt: DateTime.utc(2026, 9, 12, 10),
                               items: const [
                                 InventorySessionItemModel(
+                                  name: "test",
                                   productId: 1,
                                   countedQuantity: 48,
                                   expectedVersion: 2,
                                 ),
                                 InventorySessionItemModel(
+                                  name: "test",
                                   productId: 2,
                                   countedQuantity: 32,
                                   expectedVersion: 4,

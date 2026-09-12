@@ -37,11 +37,13 @@ class InventorySessionRequestModel {
 
 class InventorySessionItemModel {
   final int productId;
+  final String name;
   final int countedQuantity;
   final int expectedVersion;
 
   const InventorySessionItemModel({
     required this.productId,
+    required this.name,
     required this.countedQuantity,
     required this.expectedVersion,
   });
@@ -49,6 +51,7 @@ class InventorySessionItemModel {
   factory InventorySessionItemModel.fromJson(Map<String, dynamic> json) {
     return InventorySessionItemModel(
       productId: json['productId'] as int,
+      name: json['name'] as String,
       countedQuantity: json['countedQuantity'] as int,
       expectedVersion: json['expectedVersion'] as int,
     );
@@ -56,6 +59,7 @@ class InventorySessionItemModel {
 
   Map<String, dynamic> toJson() => {
     'productId': productId,
+    'name': name,
     'countedQuantity': countedQuantity,
     'expectedVersion': expectedVersion,
   };
