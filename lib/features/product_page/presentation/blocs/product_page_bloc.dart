@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ossos_task/core/utils/product_utils.dart';
 import 'package:ossos_task/imports.dart';
 
 import '../../../inventory_session/data/models/inventory_session_request_model.dart';
@@ -122,14 +123,13 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
     RestoreProductCountsEvent event,
     Emitter<BaseBlocState> emit,
   ) async {
+    await ProductUtils().saveStoreId(event.storeId);
     _restoring = true;
     _restoreError = null;
     _restoredCounts.clear();
     _emitProducts(emit);
     try {
-      _restoredCounts = await _useCase.getProductsSharedPrefrences(
-        event.storeId,
-      );
+      _restoredCounts = await ProductUtils().getProductsSharedPrefrences();
 
       _counts
         ..clear()
@@ -159,16 +159,13 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
     }
     _storageError = null;
     _emitProducts(emit);
-    final snapshot = Map<int, int>.of(_counts);
+    // final snapshot = Map<int, int>.of(_counts);
     _saveQueue = _saveQueue.then((_) async {
       try {
-        await SecureStorageManager.getInstance().setObject(
-          'product_counts_${event.storeId}',
-          snapshot.map((id, value) => MapEntry(id.toString(), value)),
-        );
+        await ProductUtils().savePproductsSharedPrefrence(_counts,);
         _savedCounts
           ..clear()
-          ..addAll(snapshot);
+          ..addAll(_counts);
         _storageError = null;
       } catch (_) {
         _storageError = 'Could not save changes locally. Please retry.';

@@ -22,24 +22,6 @@ class ProductPageUseCase extends UseCase<ProductPageModel, ProductPageParams> {
     }
     return _repository.fetchProducts(page: params.page, limit: params.limit);
   }
-
-  Future<Map<int,int>> getProductsSharedPrefrences(String storeId) async {
-    final Map<int,int> _restoredCounts = {};
-    final raw = await SecureStorageManager.getInstance().getValue(
-      'product_counts_${storeId}',
-    );
-
-    if (raw != null) {
-      final data = jsonDecode(raw) as Map<String, dynamic>;
-      for (final entry in data.entries) {
-        final id = int.tryParse(entry.key);
-        if (id != null && entry.value is int && (entry.value as int) >= 0) {
-          _restoredCounts[id] = entry.value as int;
-        }
-      }
-    }
-    return _restoredCounts;
-  }
 }
 
 

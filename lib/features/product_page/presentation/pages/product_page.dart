@@ -59,7 +59,7 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
 
   @override
   void onPopInvoked(bool didPop) {
-    BlocProvider.of<InventorySessionBloc>(context).add(getProductsCountEvent('cairo'));
+    BlocProvider.of<InventorySessionBloc>(context).add(getProductsCountEvent());
     super.onPopInvoked(didPop);
   }
 

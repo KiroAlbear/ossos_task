@@ -3,7 +3,6 @@ class SecureStorageKeys {
   static const String userToken = 'userToken';
   static const String themeModeKey = 'themeModeKey';
   static const String showOnboardingKey = 'showOnboardingKey';
-  static const String saveRegionKey = 'saveRegionKey';
-  static const String saveRegistrationModelKey = 'saveRegistrationModelKey';
-  static const String saveLoginModelKey = 'saveLoginModelKey';
+  static const String storeIdKey = 'storeId';
+  static const String productCountsKey = 'product_counts_';
 }

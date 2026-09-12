@@ -5,6 +5,7 @@ import 'package:ossos_task/core/base/base_bloc_state.dart';
 import 'package:ossos_task/core/base/base_stateful_widget.dart';
 import 'package:ossos_task/core/core.dart';
 import 'package:ossos_task/core/routes/routes.dart';
+import 'package:ossos_task/core/utils/product_utils.dart';
 import 'package:ossos_task/features/inventory_session/inventory_session.dart';
 
 import '../blocs/inventory_session_bloc.dart';
@@ -37,7 +38,7 @@ class _InventorySessionPageState extends BaseStatefullState<InventorySessionPage
   void initState() {
 
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-      BlocProvider.of<InventorySessionBloc>(context).add(getProductsCountEvent('cairo'));
+      BlocProvider.of<InventorySessionBloc>(context).add(getProductsCountEvent());
     },);
 
     super.initState();
@@ -180,7 +181,9 @@ class ActiveSessionCard extends StatelessWidget {
             children: [
               total != counted?Expanded(
                 child: FilledButton.icon(
-                  onPressed: () {},
+                  onPressed: () {
+                    Routes.navigateToScreen(Routes.productsScreen,NavigationType.pushNamed,context);
+                  },
                   icon: const Icon(Icons.play_arrow_rounded),
                   label: const Text('Resume Counting'),
                   style: FilledButton.styleFrom(
@@ -240,8 +243,13 @@ class QuickActionsCard extends StatelessWidget {
                 child: ActionTile(
                   icon: Icons.add_circle_rounded,
                   title: 'Start New\nSession',
-                  onTap: () {
-                    Routes.navigateToScreen(Routes.productsScreen,NavigationType.pushNamed,context);
+                  onTap: () async {
+                    final Map<int,int> products = await ProductUtils().getProductsSharedPrefrences();
+                    if(products.length == 0) {
+                      Routes.navigateToScreen(Routes.productsScreen,NavigationType.pushNamed,context);
+                    }else{
+                      AppUtils.showAppToast(context: context, message: "You have session in progress");
+                    }
                   },
                 ),
               ),
