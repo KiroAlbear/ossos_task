@@ -148,6 +148,7 @@ class AppUtils {
     Duration autoCloseDuration = const Duration(seconds: 3),
     Color backgroundColor = StaticColors.red_808,
   }) {
+    toastification.dismissAll();
     toastification.showCustom(
       context: context,
       alignment: Alignment.bottomCenter,

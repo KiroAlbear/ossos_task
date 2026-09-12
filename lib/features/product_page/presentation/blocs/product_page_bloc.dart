@@ -30,6 +30,7 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
   final _savedCounts = <int, int>{};
   Future<void> _saveQueue = Future<void>.value();
   String? _storageError;
+  bool _submitting = false;
 
   ProductPageBloc(this._useCase) : super(InitialState()) {
     on<_ProductCountsResetEvent>((event, emit) => _emitProducts(emit));
@@ -54,6 +55,33 @@ class ProductPageBloc extends Bloc<ProductPageEvent, BaseBlocState> {
   }
 
   Future<void> flushSaves() => _saveQueue;
+
+  /// Saves a completed count locally and clears its draft for either page.
+  Future<void> submitCount() async {
+    final String storeId = await ProductUtils().getStoreId()??"";
+    if (_submitting) {
+      throw StateError('A submission is already in progress.');
+    }
+    if (storeId.isEmpty) {
+      throw StateError('Please select a store first.');
+    }
+    _submitting = true;
+    try {
+      await flushSaves();
+      if (_restoring || _loading || _page < _totalPages) {
+        throw StateError(
+          'Open the product count page to load all products before submitting.',
+        );
+      }
+      if (!allProductsCounted) {
+        throw StateError('Please count all products before submitting.');
+      }
+      await saveSubmittedProducts(storeId);
+      await resetProductsData(storeId);
+    } finally {
+      _submitting = false;
+    }
+  }
 
   bool get allProductsCounted =>
       !_restoring &&

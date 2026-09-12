@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:gap/gap.dart';
 import 'package:ossos_task/core/base/base_bloc.dart';
 import 'package:ossos_task/core/base/base_bloc_state.dart';
 import 'package:ossos_task/core/base/base_stateful_widget.dart';
@@ -7,6 +8,7 @@ import 'package:ossos_task/core/core.dart';
 import 'package:ossos_task/core/routes/routes.dart';
 import 'package:ossos_task/core/utils/product_utils.dart';
 import 'package:ossos_task/features/inventory_session/inventory_session.dart';
+import 'package:ossos_task/features/product_page/presentation/blocs/product_page_bloc.dart';
 
 import '../blocs/inventory_session_bloc.dart';
 import '../blocs/inventory_session_state.dart';
@@ -64,14 +66,61 @@ class _InventorySessionPageState extends BaseStatefullState<InventorySessionPage
   }
 }
 
-class ActiveSessionCard extends StatelessWidget {
+class ActiveSessionCard extends StatefulWidget {
   final int counted;
   final int total;
   const ActiveSessionCard({super.key, required this.counted, required this.total});
 
   @override
-  Widget build(BuildContext context) {
+  State<ActiveSessionCard> createState() => _ActiveSessionCardState();
+}
 
+class _ActiveSessionCardState extends State<ActiveSessionCard> {
+  bool _submitting = false;
+
+  Future<void> _submit() async {
+    if (_submitting) return;
+    setState(() => _submitting = true);
+    try {
+      final storeId = await ProductUtils().getStoreId();
+      if (!mounted) return;
+      if (storeId == null || storeId.isEmpty) {
+        throw StateError('Please select a store first.');
+      }
+      await context.read<ProductPageBloc>().submitCount();
+      if (!mounted) return;
+      context.read<InventorySessionBloc>().add(const getProductsCountEvent());
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error is StateError
+                ? error.message.toString()
+                : 'Unable to submit. Your local counts are retained.',
+          ),
+          action: SnackBarAction(
+            label: 'Resume Counting',
+            onPressed: () {
+              if (!mounted) return;
+              Routes.navigateToScreen(
+                Routes.productsScreen,
+                NavigationType.pushNamed,
+                context,
+              );
+            },
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final counted = widget.counted;
+    final total = widget.total;
     final double progress = counted / total;
 
     return AppCard(
@@ -179,7 +228,7 @@ class ActiveSessionCard extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              total != counted?Expanded(
+              Expanded(
                 child: FilledButton.icon(
                   onPressed: () {
                     Routes.navigateToScreen(Routes.productsScreen,NavigationType.pushNamed,context);
@@ -195,11 +244,19 @@ class ActiveSessionCard extends StatelessWidget {
                     ),
                   ),
                 ),
-              ):Expanded(
+              ),
+            counted == total? Gap(10):Gap(0),
+             counted == total? Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.send_rounded),
-                  label: const Text('Submit Count'),
+                  onPressed: _submitting ? null : _submit,
+                  icon: _submitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.send_rounded),
+                  label: Text(_submitting ? 'Submitting...' : 'Submit Count'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: InventorySessionPage.primaryBlue,
                     side: const BorderSide(
@@ -212,7 +269,7 @@ class ActiveSessionCard extends StatelessWidget {
                     ),
                   ),
                 ),
-              ),
+              ):SizedBox(),
             ],
           ),
         ],
@@ -245,7 +302,7 @@ class QuickActionsCard extends StatelessWidget {
                   title: 'Start New\nSession',
                   onTap: () async {
                     final Map<int,int> products = await ProductUtils().getProductsSharedPrefrences();
-                    if(products.length == 0) {
+                    if(products.isEmpty) {
                       Routes.navigateToScreen(Routes.productsScreen,NavigationType.pushNamed,context);
                     }else{
                       AppUtils.showAppToast(context: context, message: "You have session in progress");

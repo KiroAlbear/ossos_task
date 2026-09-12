@@ -51,9 +51,9 @@ class ToastWidget extends StatelessWidget {
                       style: AppTextStyles.create(
                         context,
                         color: StaticColors.white,
-                        fontSize: AppFontSizes.size16,
+                        fontSize: AppFontSizes.size14,
                         fontWeight: AppFontWeights.semiBold,
-                        height: 1.1,
+                        height: 1,
                       ),
                     ),
                   ),

@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:ossos_task/config/config.dart';
 import 'package:ossos_task/core/core.dart';
 
 class DialogWidget extends StatefulWidget {
   final String message;
-  final String? confirmMessage;
-  final String? cancelMessage;
+  final String? confirmText;
+  final String? cancelText;
   final VoidCallback? onConfirm;
   final VoidCallback? onCancel;
   final bool isConfirmButtonPrimary;
@@ -15,8 +14,8 @@ class DialogWidget extends StatefulWidget {
   const DialogWidget({
     super.key,
     required this.message,
-    this.confirmMessage,
-    this.cancelMessage,
+    this.confirmText,
+    this.cancelText,
     this.onCancel,
     this.onConfirm,
     this.isConfirmButtonPrimary = false,
@@ -29,49 +28,89 @@ class DialogWidget extends StatefulWidget {
 
 class _DialogWidgetState extends State<DialogWidget> {
   @override
-  Widget build(BuildContext context) => _column;
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      contentPadding: EdgeInsets.symmetric(vertical: 25,horizontal: 30),
+      content: Text(
+        widget.message,
+        style: AppTextStyles.create(context, fontSize: 16,height: 1.2),
+        overflow: TextOverflow.visible,
+      ),
+      actions: [
+        widget.confirmText!=null?TextButton(
+          onPressed: ()  {
+            widget.onConfirm;
+            Navigator.pop(context);
+          },
+          child: Text(
+            widget.confirmText!,
+            style: AppTextStyles.create(
+              context,
+              fontSize: 14,
+              color: Colors.blue,
+            ),
+          ),
+        ):SizedBox(),
+
+        widget.cancelText!=null?TextButton(
+          onPressed: ()  {
+            widget.onCancel;
+            Navigator.pop(context);
+          },
+          child: Text(
+            widget.cancelText!,
+            style: AppTextStyles.create(
+              context,
+              fontSize: 14,
+              color: Colors.blue,
+            ),
+          ),
+        ):SizedBox(),
+      ],
+    );
+  }
 
   Widget get _column => Padding(
-    padding: EdgeInsets.symmetric(horizontal: 17.w),
-    child: Stack(
-      children: [
-        Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(height: 21.h),
-            _message,
-            SizedBox(height: 25.h),
+    padding: const EdgeInsets.symmetric(horizontal: 17,vertical: 200),
+    child: Material(
+      color: Colors.white,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 21),
+        _message,
+          const SizedBox(height: 25),
 
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 32.w),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (widget.cancelMessage != null) ...[
-                    _confirmButton,
-                    SizedBox(height: 10.h),
-                  ],
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.cancelText != null) ...[
+                  _confirmButton,
+                  const SizedBox(height: 10),
+              ],
 
-                  if (widget.confirmMessage != null) ...[
-                    _cancelButton,
-                    (widget.isConfirmButtonPrimary == false ||
-                            widget.hasBottomPadding)
-                        ? SizedBox(height: 28.h)
-                        : SizedBox(),
-                  ],
+                if (widget.confirmText != null) ...[
+                  _cancelButton,
+                  (widget.isConfirmButtonPrimary == false ||
+                          widget.hasBottomPadding)
+                      ? const SizedBox(height: 28)
+                    : SizedBox(),
                 ],
-              ),
+              ],
             ),
+          ),
 
-            widget.cancelMessage == null
-                ? SizedBox(height: 28.h)
-                : const SizedBox(),
+          widget.cancelText == null
+              ? const SizedBox(height: 28)
+            : const SizedBox(),
 
-          ],
-        ),
-      ],
+        ],
+      ),
     ),
   );
 
@@ -89,7 +128,7 @@ class _DialogWidgetState extends State<DialogWidget> {
   );
 
   Widget get _confirmButton => CustomElevatedButton(
-    child: Text(widget.confirmMessage ?? ""),
+    child: Text(widget.confirmText ?? ""),
     onPressed: () {
       if (widget.onConfirm != null) {
         widget.onConfirm!();
@@ -99,7 +138,7 @@ class _DialogWidgetState extends State<DialogWidget> {
   );
 
   Widget get _cancelButton => CustomElevatedButton.outlined(
-    text: widget.cancelMessage ?? "",context: context,
+    text: widget.cancelText ?? "",context: context,
     // child: Text(widget.cancelMessage ?? ""),
 
     onPressed: () {

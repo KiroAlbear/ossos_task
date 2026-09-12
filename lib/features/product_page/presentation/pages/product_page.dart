@@ -202,39 +202,12 @@ class _ProductPageState extends BaseStatefullState<ProductPage> {
       if (!bloc.allProductsCounted) {
         await showDialog<void>(
           context: context,
-          builder: (context) => AlertDialog(
-            title: Text(
-              'Count all products',
-              style: AppTextStyles.create(
-                context,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            content: Text(
-              'Please count all products before submitting. Your draft counts are saved locally.',
-              style: AppTextStyles.create(context, fontSize: 14),
-              overflow: TextOverflow.visible,
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'Done',
-                  style: AppTextStyles.create(
-                    context,
-                    fontSize: 14,
-                    color: _blue,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
+          builder: (context){
+            return DialogWidget(message: "Please count all products before submitting. Your draft counts are saved locally.",confirmText: "Done",);
+          });
         return;
       }
-      await bloc.saveSubmittedProducts(widget.storeId);
-      await bloc.resetProductsData(widget.storeId);
+      await bloc.submitCount();
       if (!mounted) return;
       _productCountsMap.clear();
       _savedProductsCountsMap.clear();

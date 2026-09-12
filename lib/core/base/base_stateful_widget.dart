@@ -205,8 +205,8 @@ abstract class BaseStatefullState<T extends BaseStatefulWidget> extends State<T>
         builder: (context) {
           return DialogWidget(
             message: "Are you sure you want to exit the app?",
-            cancelMessage: "Cancel",
-            confirmMessage: "Ok",
+            cancelText: "Cancel",
+            confirmText: "Ok",
             onCancel: () {},
             onConfirm: () {
               exit(0);
